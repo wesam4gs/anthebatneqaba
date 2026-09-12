@@ -4011,7 +4011,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
               <button
                 onClick={() => {
                   if (confirm('هل أنت متأكد من تسجيل الخروج من النظام؟')) {
-                    localStorage.clear();
+                    localStorage.clear(); localStorage.setItem('isLoggedOut', 'true');
                     window.location.href = '/';
                   }
                 }}
@@ -4027,4 +4027,5 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
     </>
   );
 };
+
 
