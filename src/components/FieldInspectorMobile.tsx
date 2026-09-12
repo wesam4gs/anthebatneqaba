@@ -3447,6 +3447,26 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       </summary>
                       <div className="p-3 bg-slate-950/90 backdrop-blur-xl border-t border-white/10 flex flex-col gap-3 shadow-inner">
                         <div>
+                          <label className="text-[10px] font-bold text-slate-200 block mb-2 text-right">المظهر (الثيمات الـ 7):</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {medicalThemePresets.map(preset => (
+                              <button
+                                key={preset.id}
+                                onClick={(e) => { e.preventDefault(); setMedicalTheme(preset.id); }}
+                                className={`text-right text-[10px] font-bold p-2 rounded-lg border transition-colors flex items-center justify-between cursor-pointer ${
+                                  medicalTheme === preset.id
+                                    ? 'bg-emerald-600 border-emerald-500 text-white shadow'
+                                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                                }`}
+                              >
+                                <span>{preset.id === 'executive-night' ? 'الوضع الليلي التنفيذي' : preset.id === 'medical-sky' ? 'سماء طبية' : preset.id === 'medical-ocean' ? 'محيط هادئ' : preset.id === 'medical-emerald' ? 'أخضر نقابي' : preset.id}</span>
+                                {medicalTheme === preset.id && <CheckCircle2 className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
                           <label className="text-[10px] font-bold text-slate-200 block mb-2 text-right">حجم الخط الأساسي:</label>
                           <div className="flex items-center justify-between bg-slate-900 border border-white/10 rounded-xl p-1">
                             {['صغير جداً', 'صغير', 'متوسط', 'كبير'].map((lbl, idx) => (

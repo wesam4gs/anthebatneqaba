@@ -452,5 +452,65 @@ html:not(.dark) #expiry-collapsed-teaser {
 
 
 
-/* MAPPING MOBILE APP TO THEMES */
-#field-inspector-pwa-container, #field-inspector-pwa-container.bg-gradient-to-br {
+
+
+/* MOBILE APP DYNAMIC THEME OVERRIDES */
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container {
+  background: var(--theme-canvas) !important;
+  color: var(--theme-text-primary) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-gradient-to-br {
+  background: var(--theme-canvas) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950\/80,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950\/90,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-900\/40,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800\/40,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-900 {
+  background-color: var(--theme-card-bg) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-100,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-200 {
+  color: var(--theme-text-primary) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-300,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-400 {
+  color: var(--theme-text-muted) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .border-white\/10,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .border-white\/5 {
+  border-color: var(--theme-card-border) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-white {
+  color: var(--theme-text-primary) !important;
+}
+/* Ensure buttons and badges with strong backgrounds keep their white text */
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-500,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-500,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-red-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-amber-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-indigo-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-blue-600,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800 {
+  color: #ffffff !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-600 .text-white,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-500 .text-white,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-600 .text-white,
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800 .text-white {
+  color: #ffffff !important;
+}
+/* Update the top header to not be pitch black in light mode */
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-\[\#0a1628\]\/85 {
+  background-color: var(--theme-card-bg) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-[#0"],
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-[#1"] {
+  background-color: var(--theme-card-bg) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="hover:bg-[#1"]:hover {
+  background-color: var(--theme-canvas) !important;
+}
