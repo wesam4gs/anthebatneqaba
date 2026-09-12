@@ -4,6 +4,7 @@ import { GisMap } from './components/GisMap';
 import { FacilitiesTable } from './components/FacilitiesTable';
 import { InspectionManager } from './components/InspectionManager';
 import { FieldInspectorMobile } from './components/FieldInspectorMobile';
+import { MobileLogin } from './components/MobileLogin';
 import { NursesDirectory } from './components/NursesDirectory';
 import { ViolationsReport } from './components/ViolationsReport';
 import { DashboardStats } from './components/DashboardStats';
@@ -582,13 +583,16 @@ export default function App({ isMobileOnly = false }: AppProps) {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-[var(--theme-canvas)] flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-3xl shadow-xl w-full max-w-sm text-center">
-           <h2 className="text-xl font-black text-rose-600 mb-2">تسجيل خروج</h2>
-           <p className="text-sm text-slate-600 mb-6">لقد تم تسجيل الخروج من منظومة التفتيش الميداني.</p>
-           <button onClick={() => { localStorage.removeItem('isLoggedOut'); window.location.href = '/'; }} className="w-full bg-slate-800 text-white font-bold py-3 rounded-xl">تسجيل الدخول مجدداً</button>
-        </div>
-      </div>
+        <MobileLogin 
+          onLogin={(username) => {
+            const user = INITIAL_USERS.find(u => u.username === username) || INITIAL_USERS[0];
+            if (user) {
+              localStorage.setItem('username', user.username!);
+              localStorage.removeItem('isLoggedOut');
+              setCurrentUser(user);
+            }
+          }}
+        />
     );
   }
 
@@ -1227,6 +1231,9 @@ export default function App({ isMobileOnly = false }: AppProps) {
  </ExecutiveLayout>
  );
 }
+
+
+
 
 
 
