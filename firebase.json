@@ -1,0 +1,65 @@
+{
+  "hosting": [
+    {
+      "site": "iraqi-nursing-syndicate",
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/mobile",
+          "destination": "/mobile.html"
+        },
+        {
+          "source": "/mobile/**",
+          "destination": "/mobile.html"
+        },
+        {
+          "source": "/inspector",
+          "destination": "/mobile.html"
+        },
+        {
+          "source": "/inspector/**",
+          "destination": "/mobile.html"
+        },
+        {
+          "source": "/login",
+          "destination": "/login.html"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "site": "iraqi-inspectormopile",
+      "public": "dist-inspector",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/mobile",
+          "destination": "/index.html"
+        },
+        {
+          "source": "/mobile/**",
+          "destination": "/index.html"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

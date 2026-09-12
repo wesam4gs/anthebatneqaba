@@ -1,0 +1,30 @@
+{
+  "name": "جمهورية العراق - نقابة التمريض العراقية",
+  "short_name": "نقابة التمريض",
+  "description": "المنصة الوطنية للرقابة والتفتيش الصحي - نقابة التمريض العراقية | المقر العام",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0B1528",
+  "theme_color": "#2C5EAD",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "993x1007",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

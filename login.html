@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>تسجيل الدخول - المنصة الوطنية للرقابة والتفتيش</title>
+<link rel="icon" type="image/png" href="/public/icon.png">
+<link rel="apple-touch-icon" href="/public/icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/src/index.css">
+<link rel="stylesheet" href="/src/login.css">
+</head>
+<body>
+
+<div class="login-wrapper">
+    <div class="flip-scene" id="flipScene">
+        <div class="flip-card">
+            <div class="accent-ring"></div>
+
+            <!-- FRONT — LOGIN -->
+            <div class="glass-circle front">
+                <form class="login-form" id="loginForm">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <img src="/logo_transparent.png" alt="شعار النقابة" style="width: 80px; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                    </div>
+                    <h1>تسجيل الدخول</h1>
+                    <div class="subtitle">قم بتسجيل الدخول إلى حسابك بالنقابة</div>
+
+                    <div class="input-box">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off" required>
+                    </div>
+
+                    <div class="input-box">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" placeholder="كلمة المرور" autocomplete="off" required>
+                    </div>
+
+                    <div class="forgot">
+                        <div class="remember">
+                            <div class="switch" id="rememberSwitch"></div>
+                            تذكرني
+                        </div>
+                        <a href="#" id="toForgot" onclick="document.getElementById('flipScene').classList.add('flipped'); return false;">نسيت كلمة المرور؟</a>
+                    </div>
+
+                    <button type="submit">تسجيل الدخول</button>
+                    
+                    
+
+                    <p id="errorMsg" style="color: #CE3B3B; font-size: 13px; text-align: center; margin-top: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة.</p>
+
+                    
+                </form>
+            </div>
+
+            <!-- BACK — SIGN UP -->
+                        <div class="glass-circle back">
+                <form class="login-form" id="forgotForm">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <img src="/logo_transparent.png" alt="شعار النقابة" style="width: 80px; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                    </div>
+                    <h1>استعادة المرور</h1>
+                    <div class="subtitle">أدخل رقم الواتساب المسجل لاستعادة الحساب</div>
+
+                    <div class="input-box" style="margin-bottom: 30px;">
+                        <i class="fa-solid fa-phone"></i>
+                        <input type="text" id="recoverPhone" placeholder="رقم الهاتف (مثال: 077...)" autocomplete="off" required>
+                    </div>
+
+                    <button type="submit">إرسال للواتساب</button>
+                    
+                    <p id="forgotMsg" style="font-size: 13px; text-align: center; margin-top: 10px; display: none;"></p>
+
+                    <div class="signup-text">تذكرت كلمة المرور؟ <a href="#" id="toLogin" onclick="document.getElementById('flipScene').classList.remove('flipped'); return false;">العودة للدخول</a></div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from '/src/firebase.ts';
+    import { collection, query, where, getDocs } from 'firebase/firestore';
+
+    document.getElementById('rememberSwitch')?.addEventListener('click', function () {
+        this.classList.toggle('on');
+    });
+
+        const scene = document.getElementById('flipScene');
+    document.getElementById('toForgot')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        scene.classList.add('flipped');
+    });
+    document.getElementById('toLogin')?.addEventListener('click', function () {
+        scene.classList.remove('flipped');
+    });
+
+    document.getElementById('forgotForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const phone = document.getElementById('recoverPhone').value.trim();
+        const msgEl = document.getElementById('forgotMsg');
+        const btn = this.querySelector('button[type="submit"]');
+
+        msgEl.style.display = 'none';
+        const originalText = btn.textContent;
+        btn.textContent = 'جاري التحقق...';
+        btn.disabled = true;
+
+        try {
+            const apiRes = await fetch('/api/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            const data = await apiRes.json();
+            
+            msgEl.style.display = 'block';
+            if (data.success) {
+                msgEl.style.color = '#2c5ead'; // success color matches theme
+                msgEl.textContent = data.message;
+            } else {
+                msgEl.style.color = '#CE3B3B'; // error color
+                msgEl.textContent = data.message;
+            }
+        } catch (err) {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#CE3B3B';
+            msgEl.textContent = 'حدث خطأ في الاتصال بالخادم';
+        }
+        
+        btn.textContent = originalText;
+        btn.disabled = false;
+    });
+
+    // Quick Test1 Fill & Submit
+    document.getElementById('quickTest1Btn')?.addEventListener('click', function () {
+        document.getElementById('username').value = 'test1';
+        document.getElementById('password').value = 'test1';
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
+        const errorMsg = document.getElementById('errorMsg');
+        const btn = this.querySelector('button[type="submit"]');
+
+        errorMsg.style.display = 'none';
+        const originalText = btn.textContent;
+        btn.textContent = 'جاري التحقق...';
+        btn.disabled = true;
+
+        // 1. Direct validation for test1 user (Full authority across all provinces & zones)
+        if (user.toLowerCase() === 'test1' && pass === 'test1') {
+            localStorage.setItem('userRole', 'admin');
+            localStorage.setItem('username', 'test1');
+            localStorage.setItem('userGov', ''); // Empty allows viewing ALL governorates
+            localStorage.setItem('userFullName', 'مفتش لجنة التفتيش العامة (test1)'); 
+            localStorage.setItem('userUnionId', 'INSP-TEST-001');
+            localStorage.setItem('userRoleTitle', 'لجنة التفتيش العامة (كافة المحافظات والزونات)');
+            localStorage.setItem('userAssignedZone', 'كافة الزونات والقطاعات في عموم العراق (شامل)');
+
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 300);
+            return;
+        }
+
+        // 2. Try Server REST Authentication API (/api/login)
+        try {
+            const apiRes = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            if (apiRes.ok) {
+                const data = await apiRes.json();
+                if (data && data.success && data.user) {
+                    const u = data.user;
+                    localStorage.setItem('userRole', u.userRole || u.role || 'admin');
+                    localStorage.setItem('username', u.username);
+                    localStorage.setItem('userGov', u.gov || '');
+                    localStorage.setItem('userFullName', u.name || '');
+                    localStorage.setItem('userUnionId', u.unionId || '');
+                    localStorage.setItem('userRoleTitle', u.roleTitle || 'عضو لجنة التفتيش');
+                    localStorage.setItem('userAssignedZone', u.assignedZone || 'كافة الزونات');
+
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 300);
+                    return;
+                }
+            }
+        } catch (serverErr) {
+            console.warn('Server login API attempt failed, trying fallback:', serverErr);
+        }
+
+        // 3. Fallback to Firebase Firestore (if configured)
+        try {
+            const q = query(collection(db, 'users'), where('login', '==', user), where('password', '==', pass));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data();
+                const isAll = userData.role === 'admin' || !userData.gov || userData.gov === 'all';
+                localStorage.setItem('userRole', isAll ? 'admin' : 'branch_manager');
+                localStorage.setItem('username', userData.login);
+                localStorage.setItem('userGov', isAll ? '' : (userData.gov || ''));
+                localStorage.setItem('userFullName', userData.name || userData.fullName || ''); 
+                localStorage.setItem('userUnionId', userData.unionId || userData.id_number || '');
+                localStorage.setItem('userRoleTitle', userData.roleTitle || 'عضو التفتيش');
+
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 300);
+                return;
+            } else {
+                errorMsg.style.display = 'block';
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            errorMsg.textContent = "اسم المستخدم أو كلمة المرور غير صحيحة.";
+            errorMsg.style.display = 'block';
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
+
+
+

@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <!-- Definitions for text arc paths -->
+  <defs>
+    <!-- Outer circle border -->
+    <style>
+      .text-ar { font-family: 'Amiri', 'Traditional Arabic', 'Arial', sans-serif; font-weight: 900; font-size: 26px; fill: #000000; }
+      .text-ku { font-family: 'Amiri', 'Traditional Arabic', 'Arial', sans-serif; font-weight: 800; font-size: 22px; fill: #000000; }
+      .text-en { font-family: 'Arial Black', 'Montserrat', sans-serif; font-weight: 900; font-size: 22px; fill: #000000; letter-spacing: 1.5px; }
+      .text-center-ar { font-family: 'Amiri', 'Traditional Arabic', 'Arial', sans-serif; font-weight: 900; font-size: 24px; fill: #000000; }
+    </style>
+
+    <!-- Path for Top Right Text (Arabic: نقابة التمريض العراقية) -->
+    <path id="pathTopRight" d="M 425 250 A 175 175 0 0 0 250 75" fill="none" />
+    <!-- Path for Top Left Text (Kurdish: سه ندیكای په رستارانی عێراق) -->
+    <path id="pathTopLeft" d="M 75 250 A 175 175 0 0 1 250 75" fill="none" />
+    <!-- Path for Bottom Text (English: IRAQI NURSING SYNDICATE) -->
+    <path id="pathBottom" d="M 90 280 A 170 170 0 0 0 410 280" fill="none" />
+  </defs>
+
+  <!-- Outer Circle Frame -->
+  <circle cx="250" cy="250" r="242" fill="#FFFFFF" stroke="#000000" stroke-width="4" />
+  
+  <!-- Inner Green Circle (Mint Green Iraq Map Canvas) -->
+  <circle cx="250" cy="250" r="172" fill="#9DE1CE" stroke="#000000" stroke-width="3" />
+
+  <!-- Iraq Map Outline inside the mint green circle -->
+  <path d="M 185 145 C 195 140, 215 145, 230 148 C 245 150, 270 160, 285 170 C 295 175, 310 185, 325 200 C 340 215, 350 235, 355 255 C 360 275, 350 300, 335 315 C 320 330, 305 340, 290 348 C 275 352, 260 345, 250 335 C 240 330, 230 325, 220 320 C 205 310, 190 295, 175 280 C 165 265, 155 245, 158 225 C 160 210, 170 190, 178 170 Z" 
+        fill="#FFFFFF" opacity="0.95" stroke="#7FCBB8" stroke-width="2" />
+
+  <!-- Heart Shape & Stylized Embracing Hands -->
+  <!-- Left Red Hand / Heart Arch -->
+  <path d="M 235 170 C 190 175, 160 210, 170 255 C 180 295, 210 320, 230 328 C 220 310, 195 285, 192 250 C 190 225, 210 198, 235 190 C 245 186, 250 172, 235 170 Z" fill="#DC2626" />
+  <!-- Left Red Hand Palm & Fingers curving in top-center -->
+  <path d="M 235 170 C 220 168, 205 180, 200 190 C 210 185, 225 182, 240 186 C 255 190, 262 205, 252 210 C 242 215, 225 205, 215 200" fill="none" stroke="#DC2626" stroke-width="12" stroke-linecap="round" />
+
+  <!-- Right Dark Charcoal/Black Hand / Heart Arch -->
+  <path d="M 265 330 C 290 320, 335 280, 335 235 C 335 195, 305 172, 280 180 C 295 190, 312 215, 310 245 C 308 275, 275 305, 250 325 C 258 328, 262 330, 265 330 Z" fill="#27272A" />
+  <!-- Right Dark Hand Fingers reaching up -->
+  <path d="M 250 325 C 270 310, 290 290, 298 265 C 302 250, 285 245, 275 260 C 265 275, 250 300, 245 315" fill="none" stroke="#27272A" stroke-width="14" stroke-linecap="round" />
+
+  <!-- Green Family Silhouettes in the Center (Father, Child, Mother) -->
+  <!-- Father (Left) -->
+  <circle cx="215" cy="222" r="7" fill="#15803D" />
+  <path d="M 215 230 L 205 258 M 215 230 L 222 258 M 215 235 L 202 242 M 215 235 L 225 240" stroke="#15803D" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M 207 230 C 207 245, 223 245, 223 230 Z" fill="#15803D" />
+
+  <!-- Child (Center) -->
+  <circle cx="250" cy="235" r="5.5" fill="#15803D" />
+  <path d="M 250 242 L 243 262 M 250 242 L 257 262 M 250 246 L 238 240 M 250 246 L 262 240" stroke="#15803D" stroke-width="3.5" stroke-linecap="round" />
+  <path d="M 244 242 C 244 252, 256 252, 256 242 Z" fill="#15803D" />
+
+  <!-- Mother (Right) -->
+  <circle cx="282" cy="225" r="7" fill="#15803D" />
+  <path d="M 282 233 L 273 260 M 282 233 L 290 260 M 282 238 L 270 242 M 282 238 L 292 245" stroke="#15803D" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M 273 233 L 291 233 L 295 255 L 269 255 Z" fill="#15803D" />
+
+  <!-- TEXT ELEMENTS AROUND THE RING -->
+  
+  <!-- Arabic Text: نقابة التمريض العراقية -->
+  <text class="text-ar">
+    <textPath href="#pathTopRight" startOffset="10%" text-anchor="start">
+      نقابة التمريض العراقية
+    </textPath>
+  </text>
+  <text x="382" y="260" class="text-ar" font-size="20">١٩٥٩</text>
+
+  <!-- Kurdish Text: سه ندیكای په رستارانی عێراق -->
+  <text class="text-ku">
+    <textPath href="#pathTopLeft" startOffset="90%" text-anchor="end">
+      سه‌نديكاى په‌رستارانى عێراق
+    </textPath>
+  </text>
+  <text x="115" y="258" class="text-ku" font-size="20">1959</text>
+
+  <!-- English Text: IRAQI NURSING SYNDICATE -->
+  <text class="text-en">
+    <textPath href="#pathBottom" startOffset="50%" text-anchor="middle">
+      IRAQI NURSING SYNDICATE
+    </textPath>
+  </text>
+
+  <!-- Center Bottom Text: المقر العام -->
+  <text x="250" y="375" class="text-center-ar" text-anchor="middle">المقر العام</text>
+</svg>

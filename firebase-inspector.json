@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "public": "dist-inspector",
+    "ignore": [
+      "firebase.json",
+      "firebase-inspector.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

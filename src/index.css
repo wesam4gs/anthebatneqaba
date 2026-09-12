@@ -1,0 +1,456 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  body.light-mode-body {
+    background-color: var(--theme-canvas, #f0f6fb) !important;
+    color: var(--theme-text-primary, #0f2942) !important;
+  }
+
+  body.dark-mode-body {
+    background-color: #030712 !important;
+    color: #f8fafc !important;
+  }
+
+  /* -------------------------------------------------------------
+     7 CALM CLINICAL & MEDICAL THEME VARIABLES (ANTI-AI SLOP)
+     ------------------------------------------------------------- */
+  /* 1. السمائي السريري الهادئ (Clinical Sky & Mist) */
+  :root,
+  [data-theme="medical-sky"] {
+    --theme-canvas: #f0f6fb;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #d7e7f6;
+    --theme-text-primary: #0f2942;
+    --theme-text-muted: #53708c;
+    --theme-sidebar-bg: #0c233a;
+    --theme-sidebar-border: #163857;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #dbeafe;
+    --theme-primary: #0284c7;
+    --theme-accent: #f59e0b;
+  }
+
+  /* 2. الأزرق الطبي الوقائي (Serene Medical Blue) */
+  [data-theme="clinical-blue"] {
+    --theme-canvas: #f3f7fc;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #d9e6f5;
+    --theme-text-primary: #102238;
+    --theme-text-muted: #4e6785;
+    --theme-sidebar-bg: #0b1c36;
+    --theme-sidebar-border: #17355c;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #dbeafe;
+    --theme-primary: #2563eb;
+    --theme-accent: #eab308;
+  }
+
+  /* 3. الأبيض الطبي المعقم (Sterilized Clinic White) */
+  [data-theme="pure-white"] {
+    --theme-canvas: #f8fafc;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #e2e8f0;
+    --theme-text-primary: #0f172a;
+    --theme-text-muted: #64748b;
+    --theme-sidebar-bg: #0f172a;
+    --theme-sidebar-border: #1e293b;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #e2e8f0;
+    --theme-primary: #0d9488;
+    --theme-accent: #eab308;
+  }
+
+  /* 4. الزمردي الصحي المريح (Healing Mint & Sage) */
+  [data-theme="soft-mint"] {
+    --theme-canvas: #f1f7f4;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #d0fae5;
+    --theme-text-primary: #0e271f;
+    --theme-text-muted: #477062;
+    --theme-sidebar-bg: #082119;
+    --theme-sidebar-border: #134234;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #d1fae5;
+    --theme-primary: #059669;
+    --theme-accent: #d97706;
+  }
+
+  /* 5. العاجي والعنبري الطبي (Warm Ivory & Clinical Amber) */
+  [data-theme="warm-amber"] {
+    --theme-canvas: #fcf9f4;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #fed7aa;
+    --theme-text-primary: #2b2118;
+    --theme-text-muted: #796654;
+    --theme-sidebar-bg: #1c1814;
+    --theme-sidebar-border: #382f27;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #fed7aa;
+    --theme-primary: #d97706;
+    --theme-accent: #0284c7;
+  }
+
+  /* 6. الرمادي واللؤلؤي الباستيل (Muted Slate & Pearl) */
+  [data-theme="slate-pearl"] {
+    --theme-canvas: #f0f3f7;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #e2e8f0;
+    --theme-text-primary: #1e293b;
+    --theme-text-muted: #64748b;
+    --theme-sidebar-bg: #16202e;
+    --theme-sidebar-border: #26364a;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #e2e8f0;
+    --theme-primary: #475569;
+    --theme-accent: #38bdf8;
+  }
+
+  /* 7. النمط الليلي الرقابي الهادئ (Muted Syndicate Night - التصميم الأصلي) */
+  [data-theme="executive-night"] {
+    --theme-canvas: #030712;
+    --theme-card-bg: #091122;
+    --theme-card-border: #1e293b;
+    --theme-text-primary: #f8fafc;
+    --theme-text-muted: #94a3b8;
+    --theme-sidebar-bg: #091122;
+    --theme-sidebar-border: #1e293b;
+    --theme-header-bg: #070e1d;
+    --theme-header-border: #1e293b;
+    --theme-primary: #f59e0b;
+    --theme-accent: #38bdf8;
+  }
+
+  body.dir-rtl {
+    direction: rtl;
+    text-align: right;
+  }
+
+  body.dir-ltr {
+    direction: ltr;
+    text-align: left;
+  }
+
+  /* Theme overrides */
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+}
+
+/* ============================================================
+   APPLY THEME PALETTES TO CORE PLATFORM SHELL & SURFACES
+   ============================================================ */
+
+/* Main canvas viewport */
+#executive-platform-root {
+  background-color: var(--theme-canvas) !important;
+  color: var(--theme-text-primary) !important;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Official Sidebar - matches theme sidebar colors or custom sidebar theme */
+#official-sidebar {
+  background-color: var(--active-sidebar-bg, var(--theme-sidebar-bg)) !important;
+  border-color: var(--active-sidebar-border, var(--theme-sidebar-border)) !important;
+}
+
+/* In light calm themes: Topbar is crisp, clinical, and calm */
+html:not(.dark) #official-topbar {
+  background-color: var(--theme-header-bg, #ffffff) !important;
+  border-bottom: 1px solid var(--theme-card-border) !important;
+}
+
+html:not(.dark) #official-topbar #crumbTitle {
+  color: var(--theme-text-primary) !important;
+}
+
+html:not(.dark) #official-topbar .crumb span {
+  color: var(--theme-text-muted) !important;
+}
+
+html:not(.dark) #official-topbar input {
+  background-color: #ffffff !important;
+  border-color: var(--theme-card-border) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+html:not(.dark) #official-topbar input::placeholder {
+  color: var(--theme-text-muted) !important;
+}
+
+html:not(.dark) #official-topbar .date-chip {
+  background-color: #ffffff !important;
+  border-color: var(--theme-card-border) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+html:not(.dark) #official-topbar #langToggle,
+html:not(.dark) #official-topbar #sideToggle {
+  background-color: #ffffff !important;
+  border-color: var(--theme-card-border) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+html:not(.dark) #official-topbar #langToggle:hover,
+html:not(.dark) #official-topbar #sideToggle:hover {
+  background-color: var(--theme-canvas) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+/* ============================================================
+   LIGHT CALM CLINICAL THEMES: FULL SCREEN SYSTEM APPLICATION
+   ============================================================ */
+
+/* All Cards, Panels, and Containers across ALL pages */
+html:not(.dark) [class*="bg-slate-900"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(button[class*="bg-amber"]):not(button[class*="bg-emerald"]):not(button[class*="bg-blue"]):not(button[class*="bg-red"]):not(button[class*="bg-cyan"]):not(button[class*="bg-indigo"]):not(#sql-code-block),
+html:not(.dark) [class*="bg-slate-950"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(button[class*="bg-amber"]):not(button[class*="bg-emerald"]):not(button[class*="bg-blue"]):not(button[class*="bg-red"]):not(button[class*="bg-cyan"]):not(button[class*="bg-indigo"]):not(#sql-code-block),
+html:not(.dark) [class*="bg-slate-800"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(button[class*="bg-amber"]):not(button[class*="bg-emerald"]):not(button[class*="bg-blue"]):not(button[class*="bg-red"]):not(button[class*="bg-cyan"]):not(button[class*="bg-indigo"]):not(#sql-code-block),
+html:not(.dark) .bg-white:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *) {
+  background-color: var(--theme-card-bg, #ffffff) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+/* Secondary Sub-boxes & Inset Panels */
+html:not(.dark) [class*="bg-slate-950/60"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="bg-slate-900/60"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="bg-slate-800/60"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="bg-slate-800/40"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="bg-slate-50"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="bg-slate-100"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *) {
+  background-color: var(--theme-canvas, #f0f6fb) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+/* Borders across all cards, dividers, and widgets */
+html:not(.dark) [class*="border-slate-800"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="border-slate-700"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="border-slate-600"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="border-slate-200"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) [class*="border-slate-300"]:not(#official-sidebar):not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *) {
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+/* Headings & High-Contrast Titles */
+html:not(.dark) h1:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) h2:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) h3:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) h4:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) th:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) b:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) strong:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *) {
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+/* Slate Text Inversions */
+html:not(.dark) [class*="text-slate-100"]:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) [class*="text-slate-200"]:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) [class*="text-slate-300"]:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *) {
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+/* White text cleanup (ensures readability on light cards) */
+html:not(.dark) span.text-white:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not([class*="bg-"]):not([class*="badge"]):not(button *),
+html:not(.dark) p.text-white:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not([class*="bg-"]):not(button *),
+html:not(.dark) div.text-white:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not([class*="bg-"]):not(button *) {
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+/* Muted & Subtitle Text */
+html:not(.dark) [class*="text-slate-400"]:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
+html:not(.dark) [class*="text-slate-500"]:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *) {
+  color: var(--theme-text-muted, #53708c) !important;
+}
+
+/* Form Controls: Inputs, Selects, and Textareas */
+html:not(.dark) input:not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) select:not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *),
+html:not(.dark) textarea:not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *) {
+  background-color: #ffffff !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: var(--theme-text-muted, #53708c) !important;
+}
+
+/* Table Design across ALL Pages */
+html:not(.dark) table:not(#pwa-mobile-frame *) {
+  background-color: #ffffff !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+html:not(.dark) thead:not(#pwa-mobile-frame *),
+html:not(.dark) thead tr:not(#pwa-mobile-frame *),
+html:not(.dark) thead th:not(#pwa-mobile-frame *) {
+  background-color: var(--theme-canvas, #f0f6fb) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+html:not(.dark) tbody tr:not(#pwa-mobile-frame *) {
+  background-color: #ffffff !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+html:not(.dark) tbody tr:hover:not(#pwa-mobile-frame *) {
+  background-color: var(--theme-canvas, #f0f6fb) !important;
+}
+
+html:not(.dark) tbody td:not(#pwa-mobile-frame *) {
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+/* Secondary / Neutral Utility Buttons */
+html:not(.dark) button[class*="bg-slate-800"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(#themeToggle):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-blue"]):not([class*="text-red"]):not([class*="text-cyan"]),
+html:not(.dark) button[class*="bg-slate-900"]:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(#themeToggle):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-blue"]):not([class*="text-red"]):not([class*="text-cyan"]) {
+  background-color: var(--theme-canvas, #f0f6fb) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+html:not(.dark) button[class*="bg-slate-800"]:hover:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(#themeToggle),
+html:not(.dark) button[class*="bg-slate-900"]:hover:not(#official-sidebar *):not(#theme-selector-popover-panel *):not(#pwa-mobile-frame *):not(#themeToggle) {
+  background-color: var(--theme-card-border, #d7e7f6) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+.font-cairo {
+  font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* ==========================================================================
+   GLASSMORPHY & NEON GLOW UTILITIES FOR FIELD INSPECTOR MOBILE
+   ========================================================================== */
+.glass-container {
+  background: rgba(11, 20, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-pill {
+  background: rgba(15, 28, 56, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.neon-glow-emerald {
+  border: 1.5px solid rgba(52, 211, 153, 0.65);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.25), inset 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.neon-glow-cyan {
+  border: 1.5px solid rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 18px rgba(14, 165, 233, 0.25), inset 0 0 12px rgba(14, 165, 233, 0.15);
+}
+
+.neon-glow-amber {
+  border: 1.5px solid rgba(251, 191, 36, 0.65);
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.25), inset 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.neon-glow-purple {
+  border: 1.5px solid rgba(192, 132, 252, 0.65);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.25), inset 0 0 12px rgba(168, 85, 247, 0.15);
+}
+
+.neon-glow-silver {
+  border: 1.5px solid rgba(226, 232, 240, 0.55);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.neon-glow-rose {
+  border: 1.5px solid rgba(251, 113, 133, 0.65);
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.25), inset 0 0 12px rgba(244, 63, 94, 0.15);
+}
+
+/* Expiry notifications alert section in light calm themes */
+html:not(.dark) #expiry-notifications-section {
+  background-color: var(--theme-card-bg, #ffffff) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+  color: var(--theme-text-primary, #0f2942) !important;
+}
+
+html:not(.dark) #expiry-collapsed-teaser {
+  background-color: var(--theme-canvas, #f0f6fb) !important;
+  border-color: var(--theme-card-border, #d7e7f6) !important;
+}
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .printable-report-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 15px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+}
+
+
+
+
+/* MAPPING MOBILE APP TO THEMES */
+#field-inspector-pwa-container, #field-inspector-pwa-container.bg-gradient-to-br {

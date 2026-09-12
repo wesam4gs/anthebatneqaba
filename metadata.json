@@ -1,0 +1,6 @@
+{
+  "name": "جمهورية العراق - نقابة التمريض العراقية | المنصة الوطنية للرقابة والتفتيش الصحي",
+  "description": "منصة إلكترونية متكاملة لإدارة ومتابعة العيادات والمستشفيات الأهلية ولجان التفتيش الميداني مع الخرائط الجغرافية GIS وفحص الكوادر التمريضية.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

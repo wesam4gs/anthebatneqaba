@@ -1,0 +1,1 @@
+export function calculateRiskScore(facility: any): number { let score = 50; if (facility.licenseStatus === 'UNLICENSED') score += 40; if (facility.licenseStatus === 'EXPIRED') score += 20; if (facility.inspectionStatus === 'VIOLATION_RECORDED') score += 30; if (facility.inspectionStatus === 'NEEDS_INSPECTION') score += 10; return Math.min(score, 100); }

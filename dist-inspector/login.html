@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>تسجيل الدخول - المنصة الوطنية للرقابة والتفتيش</title>
+<link rel="icon" type="image/png" href="/assets/icon-BcT8Ww6q.png">
+<link rel="apple-touch-icon" href="/assets/icon-BcT8Ww6q.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script type="module" crossorigin src="/assets/login-Cd8czYBO.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-DK_xFPRq.js">
+  <link rel="stylesheet" crossorigin href="/assets/login-CfUUeSXj.css">
+  <link rel="stylesheet" crossorigin href="/assets/index-Dpt67o02.css">
+</head>
+<body>
+
+<div class="login-wrapper">
+    <div class="flip-scene" id="flipScene">
+        <div class="flip-card">
+            <div class="accent-ring"></div>
+
+            <!-- FRONT — LOGIN -->
+            <div class="glass-circle front">
+                <form class="login-form" id="loginForm">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <img src="/logo_transparent.png" alt="شعار النقابة" style="width: 80px; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                    </div>
+                    <h1>تسجيل الدخول</h1>
+                    <div class="subtitle">قم بتسجيل الدخول إلى حسابك بالنقابة</div>
+
+                    <div class="input-box">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off" required>
+                    </div>
+
+                    <div class="input-box">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" placeholder="كلمة المرور" autocomplete="off" required>
+                    </div>
+
+                    <div class="forgot">
+                        <div class="remember">
+                            <div class="switch" id="rememberSwitch"></div>
+                            تذكرني
+                        </div>
+                        <a href="#" id="toForgot" onclick="document.getElementById('flipScene').classList.add('flipped'); return false;">نسيت كلمة المرور؟</a>
+                    </div>
+
+                    <button type="submit">تسجيل الدخول</button>
+                    
+                    
+
+                    <p id="errorMsg" style="color: #CE3B3B; font-size: 13px; text-align: center; margin-top: 10px; display: none;">اسم المستخدم أو كلمة المرور غير صحيحة.</p>
+
+                    
+                </form>
+            </div>
+
+            <!-- BACK — SIGN UP -->
+                        <div class="glass-circle back">
+                <form class="login-form" id="forgotForm">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <img src="/logo_transparent.png" alt="شعار النقابة" style="width: 80px; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));">
+                    </div>
+                    <h1>استعادة المرور</h1>
+                    <div class="subtitle">أدخل رقم الواتساب المسجل لاستعادة الحساب</div>
+
+                    <div class="input-box" style="margin-bottom: 30px;">
+                        <i class="fa-solid fa-phone"></i>
+                        <input type="text" id="recoverPhone" placeholder="رقم الهاتف (مثال: 077...)" autocomplete="off" required>
+                    </div>
+
+                    <button type="submit">إرسال للواتساب</button>
+                    
+                    <p id="forgotMsg" style="font-size: 13px; text-align: center; margin-top: 10px; display: none;"></p>
+
+                    <div class="signup-text">تذكرت كلمة المرور؟ <a href="#" id="toLogin" onclick="document.getElementById('flipScene').classList.remove('flipped'); return false;">العودة للدخول</a></div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+</body>
+</html>
+
+
+

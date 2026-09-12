@@ -1,0 +1,3436 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لجنة الانضباط - INS | نقابة التمريض العراقية</title>
+  <meta name="description" content="محاكي تفاعلي متكامل لتطبيق المفتش الصحي الميداني PWA الخاص بنقابة التمريض العراقية للتحقق الجغرافي، وفحص الهويات، وتحرير الكشوفات والمخالفات.">
+  <link rel="icon" type="image/png" href="/public/icon.png">
+  <link rel="apple-touch-icon" href="/public/icon.png">
+  <link rel="manifest" href="/public/manifest.json">
+  <meta name="theme-color" content="#2C5EAD">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet GIS Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (function() {
+      if (typeof L === 'undefined') return;
+
+      function safeNum(n, fallback) {
+        if (n === null || n === undefined) return fallback;
+        const num = Number(n);
+        return isNaN(num) ? fallback : num;
+      }
+
+      function sanitizePoint(input, defaultLat = 33.3150, defaultLng = 44.3510) {
+        if (!input) return [defaultLat, defaultLng];
+        if (Array.isArray(input)) {
+          return [safeNum(input[0], defaultLat), safeNum(input[1], defaultLng)];
+        }
+        if (typeof input === 'object') {
+          const lat = input.lat !== undefined ? input.lat : (input.latitude !== undefined ? input.latitude : defaultLat);
+          const lng = input.lng !== undefined ? input.lng : (input.lon !== undefined ? input.lon : (input.longitude !== undefined ? input.longitude : defaultLng));
+          return [safeNum(lat, defaultLat), safeNum(lng, defaultLng)];
+        }
+        return [defaultLat, defaultLng];
+      }
+
+      if (L.LatLng) {
+        const originalLatLng = L.LatLng;
+        L.LatLng = function(lat, lng, alt) {
+          return new originalLatLng(safeNum(lat, 33.3150), safeNum(lng, 44.3510), alt);
+        };
+        L.LatLng.prototype = originalLatLng.prototype;
+      }
+
+      if (L.latLng) {
+        const originalToLatLng = L.latLng;
+        L.latLng = function(a, b, c) {
+          try {
+            if (Array.isArray(a)) {
+              return originalToLatLng(safeNum(a[0], 33.3150), safeNum(a[1], 44.3510));
+            }
+            if (typeof a === 'object' && a !== null) {
+              const lat = safeNum(a.lat !== undefined ? a.lat : a.latitude, 33.3150);
+              const lng = safeNum(a.lng !== undefined ? a.lng : (a.lon !== undefined ? a.lon : a.longitude), 44.3510);
+              return originalToLatLng(lat, lng);
+            }
+            return originalToLatLng(safeNum(a, 33.3150), safeNum(b, 44.3510), c);
+          } catch (e) {
+            return originalToLatLng(33.3150, 44.3510);
+          }
+        };
+      }
+
+      if (L.marker) {
+        const origMarker = L.marker;
+        L.marker = function(latlng, options) {
+          return origMarker.call(L, sanitizePoint(latlng), options);
+        };
+      }
+
+      if (L.circle) {
+        const origCircle = L.circle;
+        L.circle = function(latlng, options) {
+          return origCircle.call(L, sanitizePoint(latlng), options);
+        };
+      }
+
+      if (L.latLngBounds) {
+        const origBounds = L.latLngBounds;
+        L.latLngBounds = function(a, b) {
+          try {
+            if (Array.isArray(a)) {
+              const safeArr = a.map(pt => sanitizePoint(pt));
+              return origBounds.call(L, safeArr, b);
+            }
+            return origBounds.call(L, a, b);
+          } catch (e) {
+            return origBounds.call(L, [[33.3150, 44.3510], [33.3150, 44.3510]]);
+          }
+        };
+      }
+
+      if (L.Map && L.Map.prototype) {
+        const origSetView = L.Map.prototype.setView;
+        L.Map.prototype.setView = function(center, zoom, options) {
+          return origSetView.call(this, sanitizePoint(center), safeNum(zoom, 12), options);
+        };
+
+        const origPanTo = L.Map.prototype.panTo;
+        L.Map.prototype.panTo = function(center, options) {
+          const size = this.getSize ? this.getSize() : null;
+          if (!size || size.x <= 0 || size.y <= 0) {
+            const safeZoom = typeof this.getZoom === 'function' ? safeNum(this.getZoom(), 12) : 12;
+            return this.setView(sanitizePoint(center), safeZoom, options);
+          }
+          return origPanTo.call(this, sanitizePoint(center), options);
+        };
+
+        const origFlyTo = L.Map.prototype.flyTo;
+        L.Map.prototype.flyTo = function(target, zoom, options) {
+          const size = this.getSize ? this.getSize() : null;
+          const safeTarget = sanitizePoint(target);
+          const safeZoom = safeNum(zoom, 12);
+          if (!size || size.x <= 0 || size.y <= 0) {
+            return this.setView(safeTarget, safeZoom, options);
+          }
+          try {
+            return origFlyTo.call(this, safeTarget, safeZoom, options);
+          } catch (e) {
+            return this.setView(safeTarget, safeZoom, options);
+          }
+        };
+
+        const origFitBounds = L.Map.prototype.fitBounds;
+        if (origFitBounds) {
+          L.Map.prototype.fitBounds = function(bounds, options) {
+            const size = this.getSize ? this.getSize() : null;
+            if (!size || size.x <= 0 || size.y <= 0) {
+              return this;
+            }
+            try {
+              return origFitBounds.call(this, bounds, options);
+            } catch (e) {
+              return this;
+            }
+          };
+        }
+
+        const origUnproject = L.Map.prototype.unproject;
+        if (origUnproject) {
+          L.Map.prototype.unproject = function(point, zoom) {
+            try {
+              if (!point || isNaN(point.x) || isNaN(point.y)) {
+                return L.latLng(33.3150, 44.3510);
+              }
+              const res = origUnproject.call(this, point, zoom);
+              if (!res || isNaN(res.lat) || isNaN(res.lng)) {
+                return L.latLng(33.3150, 44.3510);
+              }
+              return res;
+            } catch (e) {
+              return L.latLng(33.3150, 44.3510);
+            }
+          };
+        }
+      }
+
+      if (L.CRS) {
+        for (const crsKey in L.CRS) {
+          const crs = L.CRS[crsKey];
+          if (crs && typeof crs.pointToLatLng === 'function') {
+            const origP2LL = crs.pointToLatLng;
+            crs.pointToLatLng = function(point, scale) {
+              try {
+                if (!point || isNaN(point.x) || isNaN(point.y)) {
+                  return L.latLng(33.3150, 44.3510);
+                }
+                const res = origP2LL.call(this, point, scale);
+                if (!res || isNaN(res.lat) || isNaN(res.lng)) {
+                  return L.latLng(33.3150, 44.3510);
+                }
+                return res;
+              } catch (e) {
+                return L.latLng(33.3150, 44.3510);
+              }
+            };
+          }
+        }
+      }
+
+      if (L.Projection) {
+        for (const prjKey in L.Projection) {
+          const prj = L.Projection[prjKey];
+          if (prj && typeof prj.unproject === 'function') {
+            const origPrjUnp = prj.unproject;
+            prj.unproject = function(point) {
+              try {
+                if (!point || isNaN(point.x) || isNaN(point.y)) {
+                  return L.latLng(33.3150, 44.3510);
+                }
+                const res = origPrjUnp.call(this, point);
+                if (!res || isNaN(res.lat) || isNaN(res.lng)) {
+                  return L.latLng(33.3150, 44.3510);
+                }
+                return res;
+              } catch (e) {
+                return L.latLng(33.3150, 44.3510);
+              }
+            };
+          }
+        }
+      }
+
+      window.addEventListener('error', function(event) {
+        if (event && event.message && event.message.indexOf('Invalid LatLng') !== -1) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return true;
+        }
+      }, true);
+    })();
+  </script>
+
+  <style>
+    :root {
+      --primary: #2C5EAD;
+      --primary-dark: #1e427b;
+      --primary-light: #1591DC;
+      --accent: #0E9F5A;
+      --accent-bg: #E6F6EE;
+      --warning: #DD8500;
+      --warning-bg: #FBF1DF;
+      --danger: #CE3B3B;
+      --danger-bg: #FBE9E9;
+      --sky-light: #F0F7FD;
+      --bg-sim: #0f172a;
+      --device-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --radius: 14px;
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    /* ================= 7 PRESTIGE THEMES ================= */
+    /* 1: نهاري (Day - Default Light) */
+    [data-theme="نهاري"], [data-theme="day"] {
+      --device-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --primary: #2C5EAD;
+      --primary-light: #1591DC;
+      --primary-dark: #1E427B;
+      --sky-light: #F0F7FD;
+      --accent: #0E9F5A;
+      --accent-bg: #E6F6EE;
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    /* 2: ليلي (Night - Midnight Navy) */
+    [data-theme="ليلي"], [data-theme="night"], [data-theme="dark"] {
+      --device-bg: #0B1329;
+      --card-bg: #152238;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --border: #233554;
+      --primary: #3B82F6;
+      --primary-light: #60A5FA;
+      --primary-dark: #1D4ED8;
+      --sky-light: #182A45;
+      --accent: #10B981;
+      --accent-bg: rgba(16, 185, 129, 0.15);
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    /* 3: ملكي (Royal - Imperial Indigo) */
+    [data-theme="ملكي"], [data-theme="royal"] {
+      --device-bg: #0D0F22;
+      --card-bg: #181A3A;
+      --text-main: #F8FAFC;
+      --text-muted: #A5B4FC;
+      --border: #2D305E;
+      --primary: #6366F1;
+      --primary-light: #818CF8;
+      --primary-dark: #4338CA;
+      --sky-light: #222550;
+      --accent: #EAB308;
+      --accent-bg: rgba(234, 179, 8, 0.16);
+      --shadow: 0 4px 22px rgba(99, 102, 241, 0.25);
+    }
+
+    /* 4: زمردي (Emerald - Medical Teal) */
+    [data-theme="زمردي"], [data-theme="emerald"] {
+      --device-bg: #041611;
+      --card-bg: #0D2821;
+      --text-main: #ECFDF5;
+      --text-muted: #6EE7B7;
+      --border: #1B453A;
+      --primary: #10B981;
+      --primary-light: #34D399;
+      --primary-dark: #047857;
+      --sky-light: #13392F;
+      --accent: #059669;
+      --accent-bg: rgba(16, 185, 129, 0.18);
+      --shadow: 0 4px 22px rgba(16, 185, 129, 0.22);
+    }
+
+    /* 5: شفق (Twilight - Crimson Discipline) */
+    [data-theme="شفق"], [data-theme="twilight"] {
+      --device-bg: #160B12;
+      --card-bg: #271420;
+      --text-main: #FFF1F2;
+      --text-muted: #FDA4AF;
+      --border: #4A1B36;
+      --primary: #E11D48;
+      --primary-light: #FB7185;
+      --primary-dark: #9F1239;
+      --sky-light: #381A2D;
+      --accent: #F43F5E;
+      --accent-bg: rgba(244, 63, 94, 0.16);
+      --shadow: 0 4px 22px rgba(225, 29, 72, 0.25);
+    }
+
+    /* 6: نيلي (Cobalt - Electric Radar) */
+    [data-theme="نيلي"], [data-theme="cobalt"] {
+      --device-bg: #071727;
+      --card-bg: #0E263E;
+      --text-main: #F0FDF4;
+      --text-muted: #67E8F9;
+      --border: #184266;
+      --primary: #06B6D4;
+      --primary-light: #22D3EE;
+      --primary-dark: #0E7490;
+      --sky-light: #133452;
+      --accent: #0EA5E9;
+      --accent-bg: rgba(6, 182, 212, 0.16);
+      --shadow: 0 4px 22px rgba(6, 182, 212, 0.25);
+    }
+
+    /* 7: عنبري (Amber - Titanium Bronze) */
+    [data-theme="عنبري"], [data-theme="amber"] {
+      --device-bg: #16130E;
+      --card-bg: #272118;
+      --text-main: #FEF3C7;
+      --text-muted: #FCD34D;
+      --border: #443725;
+      --primary: #D97706;
+      --primary-light: #FBBF24;
+      --primary-dark: #B45309;
+      --sky-light: #362D20;
+      --accent: #F59E0B;
+      --accent-bg: rgba(245, 158, 11, 0.16);
+      --shadow: 0 4px 22px rgba(217, 119, 6, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background: var(--bg-sim);
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* =================== SIMULATOR CONTROL BAR =================== */
+    .sim-bar {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    .sim-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sim-brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2C5EAD, #1591DC);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 8px rgba(44, 94, 173, 0.4);
+    }
+
+    .sim-brand h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+
+    .sim-brand span {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .sim-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sim-control-group {
+      display: flex;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 4px 8px;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .sim-control-group label {
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .sim-control-group select {
+      background: transparent;
+      color: #F8FAFC;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .sim-control-group select option {
+      background: #1e293b;
+      color: #fff;
+    }
+
+    .sim-btn {
+      background: #334155;
+      color: #fff;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .sim-btn:hover {
+      background: #475569;
+      border-color: #64748b;
+    }
+
+    .sim-btn.active {
+      background: var(--primary);
+      border-color: var(--primary-light);
+    }
+
+    .sim-btn-portal {
+      background: linear-gradient(135deg, #2C5EAD, #1591DC);
+      color: white;
+      border: none;
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .sim-btn-portal:hover {
+      opacity: 0.9;
+    }
+
+    /* =================== SIMULATOR STAGE =================== */
+    .sim-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+    }
+
+    /* FULLSCREEN MODE OVERRIDES */
+    body.fullscreen-mode .sim-stage {
+      padding: 0;
+      height: 100vh;
+    }
+
+    body.fullscreen-mode .device-wrapper {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      background: var(--device-bg) !important;
+    }
+
+    body.fullscreen-mode .device-outer-frame {
+      display: none !important;
+    }
+
+    body.fullscreen-mode .device-inner {
+      border-radius: 0 !important;
+      height: 100vh !important;
+    }
+
+    /* =================== SMARTPHONE DEVICE =================== */
+    .device-wrapper {
+      width: 390px;
+      height: 820px;
+      background: #020617;
+      border-radius: 52px;
+      padding: 12px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 2px #334155, 0 0 0 6px #0f172a;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .device-inner {
+      width: 100%;
+      height: 100%;
+      background: var(--device-bg);
+      border-radius: 42px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      color: var(--text-main);
+    }
+
+    /* Phone Top Bezel elements */
+    .device-speaker {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 4px;
+      background: #334155;
+      border-radius: 4px;
+      z-index: 50;
+    }
+
+    .dynamic-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 24px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      transition: width 0.3s;
+    }
+
+    .island-lens {
+      width: 10px;
+      height: 10px;
+      background: #111e38;
+      border-radius: 50%;
+      border: 1px solid #1e293b;
+    }
+
+    .island-indicator {
+      width: 8px;
+      height: 8px;
+      background: #0E9F5A;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #0E9F5A;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* Status Bar */
+    .status-bar {
+      height: 44px;
+      padding: 10px 22px 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+      z-index: 30;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* App Header */
+    .pwa-header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+    }
+
+    .pwa-header-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-avatar-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(44, 94, 173, 0.3);
+    }
+
+    .user-meta h2 {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .user-meta p {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .pwa-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-status {
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-online {
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+
+    .badge-offline {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .btn-icon-pwa {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    /* App Scrollable Content Area */
+    .pwa-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .pwa-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .pwa-content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    /* Cards */
+    .pwa-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .pwa-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Forms & Inputs */
+    .input-sm {
+      width: 100%;
+      font-family: inherit;
+      font-size: 11.5px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      background: var(--device-bg);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-sm:focus {
+      border-color: var(--primary-light);
+    }
+
+    .btn-app {
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-app-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-app-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-app-accent {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-app-accent:hover {
+      background: #0b8048;
+    }
+
+    .btn-app-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .btn-app-outline:hover {
+      background: var(--device-bg);
+    }
+
+    .btn-app-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* Bottom Navigation */
+    .pwa-bottom-nav {
+      background: var(--primary);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 8px 4px 14px 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 30;
+    }
+
+    .pwa-nav-item {
+      background: none;
+      border: none;
+      color: #B9D7F5;
+      font-family: inherit;
+      font-size: 9.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+      padding: 4px 0;
+    }
+
+    .pwa-nav-item .nav-icon {
+      font-size: 18px;
+      transition: transform 0.15s;
+    }
+
+    .pwa-nav-item.active {
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    .pwa-nav-item.active .nav-icon {
+      transform: translateY(-2px) scale(1.1);
+    }
+
+    /* PWA Tabs Display */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Leaflet container */
+    #mobile-leaflet-map {
+      width: 100%;
+      height: 180px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+    }
+
+    /* Scanner Viewport */
+    .scanner-box {
+      width: 100%;
+      height: 170px;
+      background: #020617;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #334155;
+    }
+
+    .scanner-laser {
+      position: absolute;
+      top: 0;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8, 0 0 18px #38bdf8;
+      animation: scan-move 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes scan-move {
+      0% { top: 15%; opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { top: 85%; opacity: 0.4; }
+    }
+
+    .scanner-target-corners {
+      width: 120px;
+      height: 120px;
+      border: 2px solid rgba(56, 189, 248, 0.7);
+      border-radius: 16px;
+      position: relative;
+      box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Verification Badge */
+    .id-verification-card {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .id-verified-stamp {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      border: 2px solid #10b981;
+      color: #10b981;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      transform: rotate(-5deg);
+    }
+
+    .id-expired-stamp {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      border: 2px solid #ef4444;
+      color: #ef4444;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      transform: rotate(-5deg);
+    }
+
+    /* Photo Upload Grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .photo-slot {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      background: var(--device-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .photo-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Pulse dot */
+    .pulsing-gps {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse-ring 1.8s infinite;
+      display: inline-block;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    /* ================= PWA DROPDOWNS & THEME MENU ================= */
+    .pwa-dropdown {
+      position: absolute;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+      z-index: 999;
+      overflow: hidden;
+      animation: pwaDropAnim 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes pwaDropAnim {
+      from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    #user-dropdown-menu {
+      top: 50px;
+      right: 12px;
+      width: 230px;
+    }
+
+    .pwa-dropdown-header {
+      padding: 10px 12px;
+      background: var(--sky-light);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pwa-dropdown-body {
+      padding: 5px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pwa-dropdown-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      background: none;
+      border: none;
+      text-align: right;
+      font-family: inherit;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .pwa-dropdown-item:hover {
+      background: var(--device-bg);
+    }
+
+    .dropdown-item-icon {
+      font-size: 16px;
+      width: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dropdown-item-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .dropdown-item-text b {
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .dropdown-item-text small {
+      font-size: 9.5px;
+      color: var(--text-muted);
+    }
+
+    .dropdown-item-arrow {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .pwa-dropdown-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    .pwa-dropdown-item.item-logout {
+      color: var(--danger);
+    }
+
+    .pwa-dropdown-item.item-logout:hover {
+      background: var(--danger-bg);
+    }
+
+    /* 7 Themes Menu */
+    .pwa-theme-menu {
+      top: 50px;
+      left: 12px;
+      width: 210px;
+    }
+
+    .theme-grid {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .theme-option {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: right;
+    }
+
+    .theme-option:hover {
+      background: var(--device-bg);
+      border-color: var(--border);
+    }
+
+    .theme-option.active {
+      background: var(--sky-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .theme-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      flex-shrink: 0;
+    }
+
+    .theme-title {
+      flex: 1;
+      font-size: 12px;
+    }
+
+    .theme-dot-indicator {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 1.5px solid var(--card-bg);
+      box-shadow: 0 0 6px var(--primary);
+      display: inline-block;
+      transition: background 0.3s;
+    }
+
+    /* ================= PWA MODALS ================= */
+    .pwa-modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: modalFadeIn 0.2s ease;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .pwa-modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 360px;
+      max-height: 90%;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      animation: modalSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .pwa-modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pwa-modal-body {
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ================= VERTICAL FEATURES LIST (TAB MORE) ================= */
+    .features-vertical-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .features-group-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin: 10px 4px 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .feature-item-row {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    }
+
+    .feature-item-row:hover {
+      transform: translateX(-2px);
+      border-color: var(--primary-light);
+      box-shadow: 0 4px 12px rgba(44, 94, 173, 0.12);
+    }
+
+    .feature-item-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .feature-item-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .feature-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .feature-item-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .feature-item-arrow {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding-left: 2px;
+    }
+
+    .input-app {
+      font-family: inherit;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 8px 12px;
+      background: var(--device-bg);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-app:focus {
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== TOP SIMULATOR TOOLBAR ==================== -->
+  <header class="sim-bar">
+    <div class="sim-brand">
+      <div class="sim-brand-logo" style="background:#fff; border:2px solid #f59e0b; padding:2px; display:flex; align-items:center; justify-content:center; border-radius:50%; width:44px; height:44px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.3);">
+        <img src="/logo.png" alt="شعار نقابة التمريض العراقية" style="width:100%; height:100%; object-fit:contain; border-radius:50%;">
+      </div>
+      <div>
+        <div style="font-size:10.5px; font-weight:800; color:#f59e0b; letter-spacing:0.5px; line-height:1.1;">جمهورية العراق</div>
+        <h1 style="font-size:14px; font-weight:900; color:#fff; margin:2px 0 0; line-height:1.2;">نقابة التمريض العراقية</h1>
+        <span style="font-size:10px; color:#cbd5e1; font-weight:500;">شعار النقابة الرسمي — لجنة الانضباط والتفتيش الميداني</span>
+      </div>
+    </div>
+
+    <div class="sim-tools">
+      <!-- Location Simulator -->
+      <div class="sim-control-group">
+        <label>📍 محاكاة الموقع (GPS):</label>
+        <select id="sim-gps-selector" onchange="window.handleSimGpsChange(this.value)">
+          <option value="baghdad_mansoor">بغداد - المنصور (33.3150, 44.3510)</option>
+          <option value="baghdad_harithiya">بغداد - الحارثية (33.3085, 44.3720)</option>
+          <option value="baghdad_karrada">بغداد - الكرادة (33.3012, 44.4280)</option>
+          <option value="basra_ashar">البصرة - العشار (30.5081, 47.7835)</option>
+          <option value="erbil_ankawa">أربيل - عينكاوة (36.1900, 44.0092)</option>
+          <option value="nineveh_mosul">نينوى - الموصل (36.3400, 43.1300)</option>
+          <option value="najaf_center">النجف الأشرف (32.0289, 44.3789)</option>
+          <option value="real_device">📍 تفعيل GPS الفعلي للجهاز</option>
+        </select>
+      </div>
+
+      <!-- Inspector Account Selector -->
+      <div class="sim-control-group">
+        <label>👤 هوية المفتش:</label>
+        <select id="sim-inspector-selector" onchange="window.handleInspectorChange(this.value)">
+          <option value="test1" selected>مفتش لجنة التفتيش العامة (test1) - كافة المحافظات والزونات</option>
+          <option value="dr_firas">د. فراس الموسوي (نقيب ومفتش عام)</option>
+          <option value="ali_karkh">م. علي حسين الكعبي (مفتش ميداني - الكرخ)</option>
+          <option value="sara_basra">م. سارة أحمد البصري (مفتشة رعاية - البصرة)</option>
+          <option value="omar_nineveh">م. عمر طارق العبيدي (مفتش لجان - نينوى)</option>
+        </select>
+      </div>
+
+      <!-- Network Toggle -->
+      <div class="sim-control-group">
+        <label>📶 الشبكة:</label>
+        <select id="sim-network-selector" onchange="window.handleNetworkToggle(this.value)">
+          <option value="online">🟢 متصل (Online Sync)</option>
+          <option value="offline">🔴 غير متصل (Offline Cache)</option>
+        </select>
+      </div>
+
+      <!-- Display Mode Switcher -->
+      <button class="sim-btn active" id="btn-device-mode" onclick="window.setMode('device')">📱 وضع الهاتف</button>
+      <button class="sim-btn" id="btn-full-mode" onclick="window.setMode('fullscreen')">🖥️ وضع ملء الشاشة</button>
+
+      <!-- Central Portal Link -->
+      <a href="/" class="sim-btn-portal" title="الرجوع إلى المنصة المركزية">
+        <span>🏛️ المنصة المركزية</span>
+        <span>↩</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ==================== SIMULATOR STAGE ==================== -->
+  <main class="sim-stage">
+    <div class="device-wrapper" id="deviceWrapper">
+      <div class="device-inner">
+        
+        <!-- Physical Bezel & Dynamic Island -->
+        <div class="device-speaker"></div>
+        <div class="dynamic-island">
+          <div class="island-lens"></div>
+          <div class="island-indicator" title="GPS & Camera Ready"></div>
+        </div>
+
+        <!-- Phone Status Bar -->
+        <div class="status-bar">
+          <div class="status-left">
+            <span id="status-live-time">10:30</span>
+            <span style="font-size:10px;">ص</span>
+          </div>
+          <div class="status-right">
+            <span class="pulsing-gps" title="GPS Active"></span>
+            <span>5G</span>
+            <span>📶</span>
+            <span>98% 🔋</span>
+          </div>
+        </div>
+
+        <!-- App Header Bar -->
+        <div class="pwa-header" style="position:relative;">
+          <!-- User Profile & Dropdown Trigger (Requirements 1 & 2) -->
+          <div class="pwa-header-user" id="userMenuToggleBtn" onclick="window.toggleUserDropdown(event)" title="انقر لفتح قائمة الحساب" style="cursor:pointer; padding:2px 6px; border-radius:10px; transition:background 0.2s;">
+            <div style="position:relative;">
+              <img id="app-header-avatar" src="/public/icon.png" alt="صورة المفتش" style="width:36px; height:36px; object-fit:cover; border-radius:9px; border:1.5px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.18); flex-shrink:0;">
+              <span style="position:absolute; bottom:-1px; right:-1px; width:9px; height:9px; background:#0E9F5A; border:1.5px solid var(--card-bg); border-radius:50%;"></span>
+            </div>
+            <div class="user-meta">
+              <div style="display:flex; align-items:center; gap:5px;">
+                <h2 id="app-user-name" style="margin:0;">د. فراس الموسوي</h2>
+                <span id="user-menu-chevron" style="font-size:9px; color:var(--text-muted); transition:transform 0.2s;">▼</span>
+              </div>
+              <p id="app-user-role">لجنة الانضباط - INS</p>
+            </div>
+          </div>
+
+          <!-- User Dropdown Menu (Under current username) -->
+          <div id="user-dropdown-menu" class="pwa-dropdown" style="display:none;" onclick="event.stopPropagation();">
+            <div class="pwa-dropdown-header">
+              <div style="font-size:11.5px; font-weight:700; color:var(--text-main);" id="dropdown-user-fullname">د. فراس الموسوي</div>
+              <div style="font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px; margin-top:2px;">
+                <span>📞</span> <span id="dropdown-user-phone">07701234567</span>
+              </div>
+            </div>
+            <div class="pwa-dropdown-body">
+              <!-- Item 1: الحساب (Opens user details to edit photo & phone) -->
+              <button type="button" class="pwa-dropdown-item" onclick="window.openAccountModal(); window.closeAllDropdowns();">
+                <span class="dropdown-item-icon">👤</span>
+                <div class="dropdown-item-text">
+                  <b>الحساب</b>
+                  <small>تعديل الصورة ورقم الهاتف</small>
+                </div>
+                <span class="dropdown-item-arrow">‹</span>
+              </button>
+              <!-- Item 2: المزيد -->
+              <button type="button" class="pwa-dropdown-item" onclick="window.switchTab('tab-more'); window.closeAllDropdowns();">
+                <span class="dropdown-item-icon">☰</span>
+                <div class="dropdown-item-text">
+                  <b>المزيد من المميزات</b>
+                  <small>استعراض كافة أقسام التطبيق</small>
+                </div>
+                <span class="dropdown-item-arrow">‹</span>
+              </button>
+              <div class="pwa-dropdown-divider"></div>
+              <!-- Requirement 2: Logout button as the last item in the dropdown -->
+              <button type="button" class="pwa-dropdown-item item-logout" onclick="window.confirmLogout(); window.closeAllDropdowns();">
+                <span class="dropdown-item-icon">🚪</span>
+                <div class="dropdown-item-text">
+                  <b>تسجيل الخروج</b>
+                  <small>إنهاء جلسة المفتش الميداني</small>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Header Actions (Left of screen): 7 Themes selector and Network badge -->
+          <div class="pwa-header-actions" style="position:relative;">
+            <span class="badge-status badge-online" id="app-network-badge">🟢 أونلاين</span>
+            
+            <!-- 7 Themes Switcher Button -->
+            <div style="position:relative;">
+              <button class="btn-icon-pwa" id="themeToggleBtn" onclick="window.toggleThemeMenu(event)" title="اختيار المظهر (7 ثيمات)">
+                <span id="theme-btn-indicator" class="theme-dot-indicator"></span>
+              </button>
+              
+              <!-- 7 Themes Menu Dropdown (Requirement 3: Exactly one word per theme) -->
+              <div id="theme-dropdown-menu" class="pwa-dropdown pwa-theme-menu" style="display:none;" onclick="event.stopPropagation();">
+                <div class="pwa-dropdown-header" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; font-size:11px; color:var(--text-main);">المظهر</span>
+                  <span style="font-size:9.5px; color:var(--primary); font-weight:700;" id="current-theme-label">نهاري</span>
+                </div>
+                <div class="theme-grid">
+                  <button type="button" class="theme-option active" data-theme-name="نهاري" onclick="window.selectTheme('نهاري')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #2C5EAD, #F8FAFC); border:1px solid #cbd5e1;"></span>
+                    <span class="theme-title">نهاري</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="ليلي" onclick="window.selectTheme('ليلي')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #3B82F6, #0B1329); border:1px solid #1e293b;"></span>
+                    <span class="theme-title">ليلي</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="ملكي" onclick="window.selectTheme('ملكي')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #6366F1, #0D0F22); border:1px solid #312e81;"></span>
+                    <span class="theme-title">ملكي</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="زمردي" onclick="window.selectTheme('زمردي')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #10B981, #041611); border:1px solid #064e3b;"></span>
+                    <span class="theme-title">زمردي</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="شفق" onclick="window.selectTheme('شفق')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #E11D48, #160B12); border:1px solid #881337;"></span>
+                    <span class="theme-title">شفق</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="نيلي" onclick="window.selectTheme('نيلي')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #06B6D4, #071727); border:1px solid #164e63;"></span>
+                    <span class="theme-title">نيلي</span>
+                  </button>
+                  <button type="button" class="theme-option" data-theme-name="عنبري" onclick="window.selectTheme('عنبري')">
+                    <span class="theme-swatch" style="background:linear-gradient(135deg, #D97706, #16130E); border:1px solid #78350f;"></span>
+                    <span class="theme-title">عنبري</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App Scrollable Body Tabs -->
+        <div class="pwa-content">
+
+          <!-- ================= TAB 1: الرئيسية (HOME & GPS) ================= -->
+          <div class="tab-pane active" id="tab-home">
+            
+            <!-- Inspector Stats Overview -->
+            <div class="pwa-card" style="background: linear-gradient(135deg, #2C5EAD, #1591DC); color:white; border:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <span style="font-size:10px; opacity:0.85;">المحافظة المكلف بها:</span>
+                  <h3 style="font-size:13px; font-weight:700;" id="app-assigned-zone">بغداد - قطاع الكرخ / المنصور</h3>
+                </div>
+                <span style="background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:6px; font-size:10px;">مفتش معتمد</span>
+              </div>
+              
+              <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:10px; text-align:center;">
+                <div style="background:rgba(255,255,255,0.15); padding:6px; border-radius:8px;">
+                  <div style="font-size:14px; font-weight:800;" id="stat-tasks-today">3</div>
+                  <div style="font-size:9.5px;">مهام اليوم</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.15); padding:6px; border-radius:8px;">
+                  <div style="font-size:14px; font-weight:800;" id="stat-tasks-done">1</div>
+                  <div style="font-size:9.5px;">تم إنجازها</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.15); padding:6px; border-radius:8px;">
+                  <div style="font-size:14px; font-weight:800;" id="stat-violations-logged">0</div>
+                  <div style="font-size:9.5px;">مخالفات</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Inspection Target Selector -->
+            <div class="pwa-card">
+              <div class="pwa-card-title">
+                <span>🎯 المنشأة المستهدفة للكشف</span>
+                <span class="badge-status badge-online" id="facility-count-badge">8 عيادات بالزون</span>
+              </div>
+
+              <div style="margin-bottom:8px;">
+                <input type="text" id="fac-search-input" class="input-sm" placeholder="🔍 بحث عن عيادة أو رقم ترخيص..." oninput="window.filterFacilitiesList(this.value)">
+              </div>
+
+              <select id="active-facility-select" class="input-sm" style="font-weight:600; margin-bottom:8px;" onchange="window.handleFacilitySelection(this.value)">
+                <!-- Loaded dynamically -->
+              </select>
+
+              <!-- Selected Facility Card Summary -->
+              <div id="selected-fac-details" style="background:var(--device-bg); border-radius:10px; padding:10px; border:1px solid var(--border); font-size:11px; line-height:1.6;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                  <b style="font-size:12px; color:var(--primary);" id="fac-card-name">عيادة المنصور للخدمات التمريضية</b>
+                  <span class="badge-status badge-online" id="fac-card-status">مرخصة أصولياً</span>
+                </div>
+                <div><b>رقم الإجازة:</b> <span id="fac-card-license">LIC-2026-002</span> | <b>النوع:</b> <span id="fac-card-type">عيادة تمريضية</span></div>
+                <div><b>المالك/الإدارة:</b> <span id="fac-card-owner">ممرض جامعي أحمد جاسم</span></div>
+                <div><b>الهاتف:</b> <span id="fac-card-phone" dir="ltr">07709876543</span></div>
+                <div><b>العنوان:</b> <span id="fac-card-address">بغداد - المنصور - شارع الأميرات</span></div>
+              </div>
+
+              <!-- GIS Geofencing & Distance Engine -->
+              <div style="margin-top:10px; background:var(--sky-light); border-radius:10px; padding:10px; border:1px solid var(--border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <b style="font-size:11px; color:var(--text-main);">📡 التدقيق الجغرافي (Geofencing 200m)</b>
+                  <span class="badge-status" id="distance-badge" style="background:#fee2e2; color:#ef4444;">خارج النطاق</span>
+                </div>
+                
+                <div style="font-size:10.5px; color:var(--text-muted); display:flex; justify-content:space-between;">
+                  <span>المسافة بينك وبين المنشأة:</span>
+                  <b id="distance-meters-text" style="color:var(--text-main);">1,420 متر</b>
+                </div>
+
+                <!-- Interactive Leaflet Preview -->
+                <div id="mobile-leaflet-map"></div>
+
+                <!-- GPS Action Buttons -->
+                <div style="display:flex; gap:6px; margin-top:10px;">
+                  <button class="btn-app btn-app-accent" id="btn-gps-checkin" style="flex:1;" onclick="window.performGpsCheckIn()">
+                    ✔ تأكيد الوصول (Check-In)
+                  </button>
+                  <button class="btn-app btn-app-outline" style="font-size:11px;" onclick="window.teleportToFacility()" title="محاكاة وصول المفتش للعيادة">
+                    ⚡ وصول سريع
+                  </button>
+                  <button class="btn-app btn-app-outline" style="font-size:11px;" onclick="window.openExternalMaps()" title="فتح الخرائط">
+                    🧭 ملاحة
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Start Inspection Action Banner -->
+            <button class="btn-app btn-app-primary" style="width:100%; padding:12px; font-size:12.5px;" onclick="window.switchTab('tab-inspection')">
+              📋 الانتقال لاستمارة الكشف الفني الميداني ⬅
+            </button>
+
+          </div>
+
+          <!-- ================= TAB 2: مهام اليوم والكشف الميداني ================= -->
+          <div class="tab-pane" id="tab-inspection">
+            
+            <div class="pwa-card">
+              <div class="pwa-card-title">
+                <span>📋 مهام الجولة التفتيشية اليوم</span>
+                <span class="badge-status badge-online">بتكليف رسمي</span>
+              </div>
+              <div id="tasks-queue-list" style="display:flex; flex-direction:column; gap:6px; max-height:130px; overflow-y:auto;">
+                <!-- Filled dynamically -->
+              </div>
+            </div>
+
+            <!-- Dynamic Field Inspection Form -->
+            <form id="pwa-inspection-form" class="pwa-card" onsubmit="window.submitFieldInspection(event)">
+              <div class="pwa-card-title">
+                <span style="font-size:12px;">📑 محضر الكشف الفني الميداني</span>
+                <span id="insp-form-facility-name" style="font-size:10px; color:var(--text-muted);">عيادة المنصور</span>
+              </div>
+
+              <!-- Standards Checklist -->
+              <div style="display:flex; flex-direction:column; gap:8px; font-size:11px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <b style="font-size:11px; color:var(--primary);">📋 قائمة تدقيق السلامة السريعة (Checklist Items)</b>
+                  <span class="badge-status badge-online" style="font-size:9px;">5 اشتراطات</span>
+                </div>
+
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-has-autoclave" checked style="transform:scale(1.15);">
+                  <span>🔬 جهاز تعقيم فعال (Autoclave Sterilizer للعيادات)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-has-safetybox" checked style="transform:scale(1.15);">
+                  <span>📦 صندوق التخلص من الحوادث الحادة (Safety Box)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-has-expired-meds" style="transform:scale(1.15);">
+                  <span style="color:#ef4444; font-weight:600;">⚠️ وجود أدوية منتهية أو محظورة (مخالفة)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-has-unlicensed-foreign" style="transform:scale(1.15);">
+                  <span style="color:#ef4444; font-weight:600;">⚠️ وجود عمالة أجنبية غير مرخصة (مخالفة)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-is-exceeding-scope" style="transform:scale(1.15);">
+                  <span style="color:#ef4444; font-weight:600;">⚠️ تشخيص طبي أو وصف أدوية خارج الصلاحية (مخالفة)</span>
+                </label>
+
+                <div style="border-top:1px dashed var(--border); margin:4px 0;"></div>
+
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-license" checked style="transform:scale(1.15);">
+                  <span>عرض إجازة ممارسة المهنة وهوية النقابة في مكان بارز</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-staff-license" checked style="transform:scale(1.15);">
+                  <span>كافة الكوادر العاملة مسجلة في نقابة التمريض العراقية</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; background:var(--device-bg); padding:6px 8px; border-radius:6px; cursor:pointer;">
+                  <input type="checkbox" id="chk-pricing" checked style="transform:scale(1.15);">
+                  <span>الالتزام بلائحة الأجور والخدمات التمريضية المقرة نقابياً</span>
+                </label>
+              </div>
+
+              <!-- Mandatory Photo Documentation (4 photos) -->
+              <div style="margin-bottom:12px; border-top:1px solid var(--border); padding-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="font-size:11px; color:var(--text-main);">📸 التوثيق المصور (4 صور إلزامية)</b>
+                  <span id="photo-count-status" style="font-size:10px; font-weight:700; color:var(--accent);">✅ 4 صور جاهزة</span>
+                </div>
+                <p style="font-size:9.5px; color:var(--text-muted); margin-bottom:6px;">الواجهة - الرخصة - غرفة الضماد - السجل</p>
+
+                <div class="photo-grid">
+                  <div class="photo-slot" onclick="window.triggerPhotoUpload(0)" id="slot-0">
+                    <img src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=150&auto=format&fit=crop&q=80" alt="الواجهة">
+                  </div>
+                  <div class="photo-slot" onclick="window.triggerPhotoUpload(1)" id="slot-1">
+                    <img src="https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=150&auto=format&fit=crop&q=80" alt="الرخصة">
+                  </div>
+                  <div class="photo-slot" onclick="window.triggerPhotoUpload(2)" id="slot-2">
+                    <img src="https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?w=150&auto=format&fit=crop&q=80" alt="التعقيم">
+                  </div>
+                  <div class="photo-slot" onclick="window.triggerPhotoUpload(3)" id="slot-3">
+                    <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=150&auto=format&fit=crop&q=80" alt="السجل">
+                  </div>
+                </div>
+                <input type="file" id="hidden-file-input" accept="image/*" multiple style="display:none;" onchange="window.handlePhotoFilesSelected(this.files)">
+              </div>
+
+              <!-- Recommendation & Notes -->
+              <div style="margin-bottom:12px;">
+                <label style="font-size:10.5px; font-weight:700; display:block; margin-bottom:4px;">توصية وقرار لجنة التفتيش:</label>
+                <select id="insp-verdict" class="input-sm" style="margin-bottom:6px;">
+                  <option value="APPROVED">✅ المنشأة مستوفية لكافة الشروط والمواصفات النقابية</option>
+                  <option value="WARNING">⚠️ توجيه إنذار أولي مع مهلة تصحيحية (7 أيام)</option>
+                  <option value="FINE">🚨 فرض غرامة نقابية وإحالة للجنة الانضباط</option>
+                  <option value="CLOSURE">🛑 طلب إغلاق فوري بالشمع الأحمر ومخاطبة قيادة الشرطة</option>
+                </select>
+
+                <textarea id="insp-notes" class="input-sm" style="height:55px; resize:none;" placeholder="ملاحظات المفتش الفنية حول الأجهزة أو الكوادر..."></textarea>
+              </div>
+
+              <button type="submit" class="btn-app btn-app-accent" style="width:100%; padding:10px; font-size:12px;">
+                💾 حفظ محضر الكشف واعتماد التقرير
+              </button>
+            </form>
+
+          </div>
+
+          <!-- ================= TAB 3: فحص الهويات والتراخيص بالـ QR ================= -->
+          <div class="tab-pane" id="tab-idcheck">
+            
+            <div class="pwa-card">
+              <div class="pwa-card-title">
+                <span>🪪 الماسح الضوئي الرقمي (QR Scanner)</span>
+                <span class="badge-status badge-online">فحص حي فوري</span>
+              </div>
+
+              <!-- Realistic Scanner Viewport -->
+              <div class="scanner-box">
+                <div class="scanner-laser"></div>
+                <div class="scanner-target-corners"></div>
+                <div style="position:absolute; bottom:8px; font-size:10px; color:#94a3b8;">وجّه الكاميرا نحو باركود الهوية النقابية</div>
+              </div>
+
+              <!-- Quick Demo Scans -->
+              <div style="margin-top:10px;">
+                <span style="font-size:10.5px; font-weight:700; display:block; margin-bottom:5px;">⚡ نماذج فحص سريعة لتجربة المحاكي:</span>
+                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                  <button type="button" class="btn-app btn-app-outline" style="font-size:10px; padding:4px 8px;" onclick="window.simulateScan('NR-BAG-2021-8841')">
+                    🟢 ممرض مرخص (عمر العبيدي)
+                  </button>
+                  <button type="button" class="btn-app btn-app-outline" style="font-size:10px; padding:4px 8px;" onclick="window.simulateScan('NR-BSR-2019-4412')">
+                    🟢 ممرضة مرخصة (زينب جاسم)
+                  </button>
+                  <button type="button" class="btn-app btn-app-outline" style="font-size:10px; padding:4px 8px;" onclick="window.simulateScan('NR-EXP-2017-9910')">
+                    🔴 هوية منتهية (حيدر سالم)
+                  </button>
+                  <button type="button" class="btn-app btn-app-outline" style="font-size:10px; padding:4px 8px;" onclick="window.simulateScan('FAKE-ID-999')">
+                    ⚠️ غير مسجل بالنقابة
+                  </button>
+                </div>
+              </div>
+
+              <!-- Manual ID Search -->
+              <div style="display:flex; gap:6px; margin-top:10px;">
+                <input type="text" id="manual-id-input" class="input-sm" placeholder="أو أدخل رقم الهوية النقابية يدويًا..." value="NR-BAG-2021-8841">
+                <button class="btn-app btn-app-primary" style="white-space:nowrap;" onclick="window.verifyNurseId(document.getElementById('manual-id-input').value)">
+                  تدقيق
+                </button>
+              </div>
+            </div>
+
+            <!-- Verification Result Container -->
+            <div id="verification-result-container">
+              <!-- Rendered by JS -->
+            </div>
+
+          </div>
+
+          <!-- ================= TAB 4: تحرير المخالفات ================= -->
+          <div class="tab-pane" id="tab-violations">
+            
+            <div class="pwa-card">
+              <div class="pwa-card-title">
+                <span>🚩 تحرير محضر مخالفة نقابية</span>
+                <span class="badge-status" style="background:#fee2e2; color:#ef4444;">سند قانوني</span>
+              </div>
+
+              <form onsubmit="window.handleViolationSubmit(event)" style="display:flex; flex-direction:column; gap:10px;">
+                <div>
+                  <label style="font-size:10.5px; font-weight:700; display:block; margin-bottom:4px;">المنشأة المخالفة:</label>
+                  <select id="viol-fac-select" class="input-sm" style="font-weight:600;">
+                    <!-- Loaded dynamically -->
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:10.5px; font-weight:700; display:block; margin-bottom:4px;">المادة / تصنيف المخالفة:</label>
+                  <select id="viol-type-select" class="input-sm">
+                    <option value="UNLICENSED">مزاولة مهنة التمريض بدون ترخيص نقابي (عيادة وهمية)</option>
+                    <option value="EXPIRED_LICENSE">إجازة ممارسة منتهية الصلاحية ولم تجدد</option>
+                    <option value="UNQUALIFIED_STAFF">تشغيل كوادر غير مؤهلة أو غير منتسبة للنقابة</option>
+                    <option value="EXPIRED_MEDICINES">حيازة أدوية ومستلزمات تالفة أو غير صالحة</option>
+                    <option value="PRICE_GOUGING">استغلال المواطنين وعدم الالتزام بالتسعيرة الرسمية</option>
+                    <option value="INFECTION_CONTROL">مخالفة جسيمة لشروط التعقيم ومكافحة العدوى</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:10.5px; font-weight:700; display:block; margin-bottom:4px;">درجة الخطورة والإجراء:</label>
+                  <select id="viol-severity-select" class="input-sm">
+                    <option value="LOW">مخالفة بسيطة (إنذار خطي أولي 7 أيام)</option>
+                    <option value="MEDIUM">مخالفة متوسطة (غرامة مالية 500,000 د.ع)</option>
+                    <option value="HIGH">مخالفة جسيمة (إحالة للجنة الانضباط النقابية)</option>
+                    <option value="CRITICAL">مخالفة حرجة (طلب إغلاق وتشميع فوري)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:10.5px; font-weight:700; display:block; margin-bottom:4px;">تفاصيل ومشاهدات المفتش:</label>
+                  <textarea id="viol-desc-input" class="input-sm" style="height:60px; resize:none;" placeholder="بيان الوقائع الميدانية والأدلة المحرزة..." required></textarea>
+                </div>
+
+                <div style="background:var(--device-bg); padding:8px 10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <b style="font-size:11px;">طلب تشميع المنشأة فوراً</b>
+                    <p style="font-size:9.5px; color:var(--text-muted);">إخطار قيادة الشرطة الصحية لإغلاق الباب بالشمع الأحمر</p>
+                  </div>
+                  <input type="checkbox" id="viol-closure-check" style="transform:scale(1.25);">
+                </div>
+
+                <button type="submit" class="btn-app btn-app-danger" style="width:100%; padding:10px; font-size:12px;">
+                  🚩 تسجيل المخالفة وإصدار أمر المحضر
+                </button>
+              </form>
+            </div>
+
+            <!-- Recent Violations Log in Zone -->
+            <div class="pwa-card">
+              <div class="pwa-card-title">
+                <span>سجل المخالفات المحررة مؤخراً</span>
+                <span style="font-size:10px; color:var(--text-muted);">هذا الشهر</span>
+              </div>
+              <div id="pwa-violations-history" style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
+                <!-- Filled dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ================= TAB 5: المزيد (ALL FEATURES & BRANCHES IN VERTICAL SEQUENCE) ================= -->
+          <div class="tab-pane" id="tab-more">
+            
+            <!-- Committee Header Card -->
+            <div class="pwa-card" style="background: linear-gradient(135deg, var(--primary), var(--primary-light)); color:white; border:none; padding:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <img id="tab-more-avatar" src="/public/icon.png" alt="صورة المفتش" style="width:48px; height:48px; border-radius:12px; object-fit:cover; border:2px solid rgba(255,255,255,0.4); box-shadow:0 3px 8px rgba(0,0,0,0.2);">
+                  <div>
+                    <span style="font-size:10px; opacity:0.85; letter-spacing:0.5px;">جمهورية العراق - نقابة التمريض</span>
+                    <h3 style="font-size:13.5px; font-weight:800; margin:0;" id="tab-more-name">د. فراس الموسوي</h3>
+                    <p style="font-size:10px; opacity:0.9; margin:2px 0 0;" id="tab-more-role">لجنة الانضباط - INS</p>
+                  </div>
+                </div>
+                <button type="button" class="btn-app" style="background:rgba(255,255,255,0.22); color:#fff; border:none; padding:6px 12px; font-size:10.5px; border-radius:8px;" onclick="window.openAccountModal()">
+                  ✏️ الحساب
+                </button>
+              </div>
+            </div>
+
+            <!-- Vertical Sequence: All App Features and Branches (تسلسل عمودي كامل) -->
+            <div class="features-vertical-list">
+              
+              <div class="features-group-title">👤 الملف التعريفي والحساب</div>
+
+              <!-- 1: الحساب -->
+              <div class="feature-item-row" onclick="window.openAccountModal()">
+                <div class="feature-item-icon" style="background:rgba(44, 94, 173, 0.12); color:var(--primary);">👤</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">إدارة الحساب وتعديل البيانات</div>
+                  <div class="feature-item-desc">تعديل الصورة الشخصية، رقم الهاتف، ومراجعة بيانات القيد النقابي</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <div class="features-group-title">🔍 العمليات والمهام الميدانية</div>
+
+              <!-- 2: الرئيسية و GIS -->
+              <div class="feature-item-row" onclick="window.switchTab('tab-home')">
+                <div class="feature-item-icon" style="background:rgba(14, 159, 90, 0.12); color:var(--accent);">⌂</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">الرئيسية وخريطة الزون (GIS & GPS)</div>
+                  <div class="feature-item-desc">استعراض المنشآت المستهدفة، التحقق الجغرافي والبحث النطاقي 5 كم</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 3: استمارة الكشف -->
+              <div class="feature-item-row" onclick="window.switchTab('tab-inspection')">
+                <div class="feature-item-icon" style="background:rgba(44, 94, 173, 0.12); color:var(--primary);">📋</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">استمارة الكشف والتفتيش الميداني</div>
+                  <div class="feature-item-desc">تدقيق معايير النظافة والتعقيم والنفايات وإصدار تقرير الكشف الصحي</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 4: فحص الهويات -->
+              <div class="feature-item-row" onclick="window.switchTab('tab-idcheck')">
+                <div class="feature-item-icon" style="background:rgba(221, 133, 0, 0.12); color:var(--warning);">🪪</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">فحص وتدقيق هويات الكوادر (QR Scanner)</div>
+                  <div class="feature-item-desc">ماسح الباركود الفوري للتحقق من إجازات مزاولة المهنة والملاكات التمريضية</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 5: تحرير المخالفات -->
+              <div class="feature-item-row" onclick="window.switchTab('tab-violations')">
+                <div class="feature-item-icon" style="background:rgba(206, 59, 59, 0.12); color:var(--danger);">⚑</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">سجل المخالفات والإنذارات الميدانية</div>
+                  <div class="feature-item-desc">توثيق الغرامات، أوامر الغلق، والإحالة إلى لجنة الانضباط المركزية</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <div class="features-group-title">📦 البيانات والمزامنة والتقارير</div>
+
+              <!-- 6: الذاكرة المحلية والعمل أوفلاين -->
+              <div class="feature-item-row" onclick="window.forceDataSync()">
+                <div class="feature-item-icon" style="background:rgba(6, 182, 212, 0.12); color:#06B6D4;">🔄</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">الذاكرة المحلية والمزامنة السحابية</div>
+                  <div class="feature-item-desc">حفظ الكشوفات أوفلاين والمزامنة الفورية عند توفر الإنترنت</div>
+                </div>
+                <span class="badge-status badge-online" style="font-size:9.5px;">نشط 100%</span>
+              </div>
+
+              <!-- 7: تصدير PDF -->
+              <div class="feature-item-row" onclick="window.exportInspectorPdf()">
+                <div class="feature-item-icon" style="background:rgba(225, 29, 72, 0.12); color:#E11D48;">📄</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">تصدير تقرير الجولة الميدانية (PDF)</div>
+                  <div class="feature-item-desc">استخراج محضر كشف رسمي معتمد بالباركود وتوقيع المفتش</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 8: تصدير Excel -->
+              <div class="feature-item-row" onclick="window.exportInspectorExcel()">
+                <div class="feature-item-icon" style="background:rgba(16, 185, 129, 0.12); color:#10B981;">📊</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">تصدير سجل المهام إلى Excel</div>
+                  <div class="feature-item-desc">تحميل جدول بيانات الكشوفات المنفذة والمخالفات الميدانية</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <div class="features-group-title">⚖️ اللوائح والطوارئ والمظهر</div>
+
+              <!-- 9: لوائح لجنة الانضباط -->
+              <div class="feature-item-row" onclick="window.openRegulationsModal()">
+                <div class="feature-item-icon" style="background:rgba(99, 102, 241, 0.12); color:#6366F1;">⚖️</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">لوائح وتعليمات لجنة الانضباط (INS)</div>
+                  <div class="feature-item-desc">جدول العقوبات النقابية، ضوابط الممارسة، ومحددات المسؤولية</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 10: بلاغات الطوارئ -->
+              <div class="feature-item-row" onclick="window.openEmergencyModal()">
+                <div class="feature-item-icon" style="background:rgba(220, 38, 38, 0.12); color:#DC2626;">🚨</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">بلاغات الطوارئ وغرفة العمليات</div>
+                  <div class="feature-item-desc">إرسال استغاثة فورية أو إشعار اعتداء لغرفة المتابعة المركزية</div>
+                </div>
+                <span class="feature-item-arrow">‹</span>
+              </div>
+
+              <!-- 11: تخصيص المظهر 7 ثيمات -->
+              <div class="feature-item-row" onclick="window.toggleThemeMenu(event)">
+                <div class="feature-item-icon" style="background:rgba(245, 158, 11, 0.12); color:#F59E0B;">🎨</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title">تخصيص المظهر (7 ثيمات راقية)</div>
+                  <div class="feature-item-desc">نهاري، ليلي، ملكي، زمردي، شفق، نيلي، عنبري</div>
+                </div>
+                <span class="badge-status" id="more-tab-theme-badge" style="background:var(--primary); color:#fff; font-size:9.5px;">نهاري</span>
+              </div>
+
+              <!-- 12: تسجيل الخروج -->
+              <div class="feature-item-row" onclick="window.confirmLogout()" style="border-color:rgba(206,59,59,0.3);">
+                <div class="feature-item-icon" style="background:rgba(206, 59, 59, 0.12); color:var(--danger);">🚪</div>
+                <div class="feature-item-content">
+                  <div class="feature-item-title" style="color:var(--danger);">تسجيل الخروج وإنهاء الوردية</div>
+                  <div class="feature-item-desc">إغلاق الجلسة الميدانية الحالية بأمان وحفظ المسودات</div>
+                </div>
+                <span class="feature-item-arrow" style="color:var(--danger);">‹</span>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ================= APP BOTTOM NAVIGATION ================= -->
+        <!-- Requirement 4: الرئيسية - الكشف - الهويات - المخالفات - المزيد -->
+        <nav class="pwa-bottom-nav">
+          <button class="pwa-nav-item active" data-target="tab-home" onclick="window.switchTab('tab-home')">
+            <span class="nav-icon">⌂</span>
+            <span>الرئيسية</span>
+          </button>
+          <button class="pwa-nav-item" data-target="tab-inspection" onclick="window.switchTab('tab-inspection')">
+            <span class="nav-icon">📋</span>
+            <span>الكشف</span>
+          </button>
+          <button class="pwa-nav-item" data-target="tab-idcheck" onclick="window.switchTab('tab-idcheck')">
+            <span class="nav-icon">🪪</span>
+            <span>الهويات</span>
+          </button>
+          <button class="pwa-nav-item" data-target="tab-violations" onclick="window.switchTab('tab-violations')">
+            <span class="nav-icon">⚑</span>
+            <span>المخالفات</span>
+          </button>
+          <button class="pwa-nav-item" data-target="tab-more" onclick="window.switchTab('tab-more')">
+            <span class="nav-icon">☰</span>
+            <span>المزيد</span>
+          </button>
+        </nav>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== PWA MODALS ==================== -->
+  <!-- Modal 1: تعديل بيانات الحساب والصورة الشخصية ورقم الهاتف (Requirement 1) -->
+  <div id="user-account-modal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target === this) window.closeAccountModal();">
+    <div class="pwa-modal-content">
+      <div class="pwa-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">👤</span>
+          <h3 style="font-size:13px; font-weight:800; color:var(--text-main); margin:0;">بيانات الحساب - لجنة الانضباط</h3>
+        </div>
+        <button type="button" class="btn-icon-pwa" onclick="window.closeAccountModal()">✕</button>
+      </div>
+      
+      <div class="pwa-modal-body">
+        <!-- Avatar Edit Section -->
+        <div style="text-align:center; padding:10px 0 16px;">
+          <div style="position:relative; width:80px; height:80px; margin:0 auto 10px;">
+            <img id="modal-user-avatar" src="/public/icon.png" alt="الصورة الشخصية" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--primary); box-shadow:0 4px 14px rgba(0,0,0,0.18);">
+            <button type="button" onclick="document.getElementById('avatar-file-input').click()" style="position:absolute; bottom:0; left:0; width:28px; height:28px; border-radius:50%; background:var(--primary); color:#fff; border:2px solid var(--card-bg); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; box-shadow:0 2px 6px rgba(0,0,0,0.25);" title="تغيير الصورة">
+              📷
+            </button>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="window.handleAvatarFileSelect(event)">
+          <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
+            <button type="button" class="btn-app btn-app-outline" style="font-size:10.5px; padding:5px 12px;" onclick="document.getElementById('avatar-file-input').click()">
+              📷 رفع صورة شخصية
+            </button>
+            <button type="button" class="btn-app btn-app-outline" style="font-size:10.5px; padding:5px 10px;" onclick="window.resetAvatarToDefault()">
+              🔄 الشعار الرسمي
+            </button>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-muted); margin-top:5px;">يدعم صور JPG, PNG حتى 5MB</div>
+        </div>
+
+        <!-- Editable Fields -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">اسم عضو لجنة الانضباط</label>
+            <input type="text" id="modal-input-name" class="input-app" value="د. فراس الموسوي" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">اللجنة / المنصب</label>
+            <input type="text" id="modal-input-role" class="input-app" value="عضو لجنة الانضباط والتفتيش الميداني" readonly style="width:100%; opacity:0.85; background:var(--sky-light);">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">رقم القيد النقابي</label>
+            <input type="text" id="modal-input-unionid" class="input-app" value="NR-IRQ-001" readonly style="width:100%; opacity:0.85; background:var(--sky-light);">
+          </div>
+          <!-- Editable Phone Number -->
+          <div>
+            <label style="font-size:11px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">
+              رقم الهاتف المعتمد * <span style="color:var(--primary); font-size:9.5px;">(قابل للتعديل)</span>
+            </label>
+            <input type="tel" id="modal-input-phone" class="input-app" value="07701234567" placeholder="مثال: 07701234567" dir="ltr" style="width:100%; text-align:right; font-weight:700; letter-spacing:1px;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">قطاع التفتيش المكلف به</label>
+            <input type="text" id="modal-input-zone" class="input-app" value="بغداد - قطاع الكرخ / المنصور" readonly style="width:100%; opacity:0.85; background:var(--sky-light);">
+          </div>
+        </div>
+
+        <div id="modal-account-alert" style="display:none; margin-top:12px; padding:8px 12px; border-radius:8px; font-size:11px; background:var(--accent-bg); color:var(--accent); font-weight:700; text-align:center;">
+          تم حفظ وتحديث بيانات الحساب بنجاح ✔
+        </div>
+      </div>
+
+      <div class="pwa-modal-footer" style="padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px;">
+        <button type="button" class="btn-app btn-app-primary" style="flex:1; justify-content:center; padding:10px;" onclick="window.saveAccountChanges()">
+          💾 حفظ التعديلات
+        </button>
+        <button type="button" class="btn-app btn-app-outline" style="flex:1; justify-content:center; padding:10px;" onclick="window.closeAccountModal()">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: تأكيد تسجيل الخروج (Requirement 2) -->
+  <div id="logout-confirm-modal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target === this) window.closeLogoutModal();">
+    <div class="pwa-modal-content" style="max-width:320px; text-align:center; padding:20px;">
+      <div style="font-size:38px; margin-bottom:8px;">🚪</div>
+      <h3 style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:6px;">تسجيل الخروج من الوردية</h3>
+      <p style="font-size:11.5px; color:var(--text-muted); line-height:1.6; margin-bottom:18px;">
+        هل أنت متأكد من تسجيل الخروج من تطبيق <b>لجنة الانضباط - INS</b>؟ سيتم حفظ كافة الكشوفات والمحاضر المسجلة محلياً بأمان.
+      </p>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-app btn-app-danger" style="flex:1; justify-content:center; padding:10px;" onclick="window.performLogout()">
+          نعم، خروج
+        </button>
+        <button type="button" class="btn-app btn-app-outline" style="flex:1; justify-content:center; padding:10px;" onclick="window.closeLogoutModal()">
+          تراجع
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: لوائح وتعليمات لجنة الانضباط -->
+  <div id="regulations-modal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target === this) window.closeRegulationsModal();">
+    <div class="pwa-modal-content">
+      <div class="pwa-modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">⚖️</span>
+          <h3 style="font-size:13px; font-weight:800; color:var(--text-main); margin:0;">لوائح لجنة الانضباط (INS)</h3>
+        </div>
+        <button type="button" class="btn-icon-pwa" onclick="window.closeRegulationsModal()">✕</button>
+      </div>
+      <div class="pwa-modal-body" style="font-size:11.5px; line-height:1.6; color:var(--text-main);">
+        <div style="background:var(--sky-light); padding:10px; border-radius:10px; margin-bottom:12px; border:1px solid var(--border);">
+          <b>قانون مزاولة مهنة التمريض رقم (16) لسنة 2012 المعدل:</b>
+          <div style="font-size:10.5px; color:var(--text-muted); margin-top:4px;">ضوابط رقابة العيادات التمريضية والمستشفيات الأهلية وصلاحيات المفتش القضائي.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="border-right:3px solid var(--warning); padding-right:8px;">
+            <b>مادة 1: الإجازات وممارسة المهنة</b>
+            <div style="font-size:10.5px; color:var(--text-muted);">يحظر على أي كادر تمريضي ممارسة المهنة دون هوية نقابية مجددة لسنة 2026.</div>
+          </div>
+          <div style="border-right:3px solid var(--danger); padding-right:8px;">
+            <b>مادة 2: الأدوية والمواد المنتهية</b>
+            <div style="font-size:10.5px; color:var(--text-muted);">حيازة أو صرف أدوية منتهية أو خارج الصلاحية التمريضية يستوجب الغلق الفوري والإحالة للقضاء.</div>
+          </div>
+          <div style="border-right:3px solid var(--primary); padding-right:8px;">
+            <b>مادة 3: محاضر الضبط القضائي</b>
+            <div style="font-size:10.5px; color:var(--text-muted);">محضر الكشف الميداني الرقمي الموقع من المفتش يعد وثيقة إثبات معتمدة لدى مجلس الانضباط.</div>
+          </div>
+        </div>
+      </div>
+      <div class="pwa-modal-footer" style="padding:10px 16px; border-top:1px solid var(--border);">
+        <button type="button" class="btn-app btn-app-primary" style="width:100%; justify-content:center;" onclick="window.closeRegulationsModal()">
+          فهمت اللائحة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: بلاغات الطوارئ والغرفة المركزية -->
+  <div id="emergency-modal" class="pwa-modal-backdrop" style="display:none;" onclick="if(event.target === this) window.closeEmergencyModal();">
+    <div class="pwa-modal-content" style="max-width:340px;">
+      <div class="pwa-modal-header" style="background:var(--danger-bg); border-color:rgba(206,59,59,0.2);">
+        <div style="display:flex; align-items:center; gap:8px; color:var(--danger);">
+          <span style="font-size:16px;">🚨</span>
+          <h3 style="font-size:13px; font-weight:800; margin:0;">غرفة الطوارئ المركزية</h3>
+        </div>
+        <button type="button" class="btn-icon-pwa" onclick="window.closeEmergencyModal()">✕</button>
+      </div>
+      <div class="pwa-modal-body">
+        <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">
+          إرسال نداء استغاثة أو إشعار فوري لمسؤول القطاع وغرفة عمليات نقابة التمريض مع إحداثيات موقعك الحالي.
+        </p>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button type="button" class="btn-app btn-app-danger" style="justify-content:center; padding:11px; font-size:12px;" onclick="window.sendEmergencyAlert('اعتداء أو تهديد ميداني')">
+            ⚠️ بلاغ: اعتراض أو عرقلة تفتيش
+          </button>
+          <button type="button" class="btn-app" style="background:#B91C1C; color:#fff; justify-content:center; padding:11px; font-size:12px;" onclick="window.sendEmergencyAlert('منشأة وهمية غير مرخصة')">
+            🛑 بلاغ: ضبط منشأة غير مجازة تماماً
+          </button>
+          <button type="button" class="btn-app btn-app-outline" style="justify-content:center; padding:9px; font-size:11px;" onclick="window.closeEmergencyModal()">
+            إلغاء
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LOGIC AND SIMULATOR CONTROLLER ==================== -->
+  <script>
+    // System State & Active Simulator Variables
+    const state = {
+      inspector: {
+        id: 'test1',
+        name: 'مفتش لجنة التفتيش العامة (test1)',
+        role: 'عضو لجنة التفتيش العامة - صلاحية شاملة',
+        unionId: 'INSP-TEST-001',
+        gov: 'كافة المحافظات',
+        zone: 'جميع الزونات والمحافظات في عموم العراق (شامل)'
+      },
+      gps: {
+        lat: 33.3150,
+        lng: 44.3510,
+        name: 'بغداد - المنصور'
+      },
+      isOnline: true,
+      activeFacility: null,
+      facilities: [],
+      assignments: [],
+      nurses: [],
+      violations: [],
+      map: null,
+      inspectorMarker: null,
+      facilityMarker: null,
+      geofenceCircle: null,
+      hasCheckedIn: false
+    };
+
+    // Predefined Locations for quick GPS simulation
+    const GPS_PRESETS = {
+      baghdad_mansoor: { lat: 33.3150, lng: 44.3510, name: 'بغداد - المنصور' },
+      baghdad_harithiya: { lat: 33.3085, lng: 44.3720, name: 'بغداد - الحارثية' },
+      baghdad_karrada: { lat: 33.3012, lng: 44.4280, name: 'بغداد - الكرادة' },
+      basra_ashar: { lat: 30.5081, lng: 47.7835, name: 'البصرة - العشار' },
+      erbil_ankawa: { lat: 36.1900, lng: 44.0092, name: 'أربيل - عينكاوة' },
+      nineveh_mosul: { lat: 36.3400, lng: 43.1300, name: 'نينوى - الموصل' },
+      najaf_center: { lat: 32.0289, lng: 44.3789, name: 'النجف الأشرف' }
+    };
+
+    // Inspectors Profiles
+    const INSPECTORS = {
+      test1: {
+        name: 'مفتش لجنة التفتيش العامة (test1)',
+        role: 'عضو لجنة التفتيش العامة - صلاحية شاملة',
+        unionId: 'INSP-TEST-001',
+        gov: 'كافة المحافظات',
+        zone: 'جميع الزونات والمحافظات في عموم العراق (شامل)'
+      },
+      dr_firas: {
+        name: 'د. فراس الموسوي',
+        role: 'نقيب التمريض العراقي - مفتش عام',
+        unionId: 'NR-IRQ-001',
+        gov: 'بغداد',
+        zone: 'بغداد - قطاع الكرخ / المنصور'
+      },
+      ali_karkh: {
+        name: 'م. علي حسين الكعبي',
+        role: 'مفتش ميداني أول',
+        unionId: 'NR-BAG-1042',
+        gov: 'بغداد',
+        zone: 'بغداد - قطاع الكرخ'
+      },
+      sara_basra: {
+        name: 'م. سارة أحمد البصري',
+        role: 'مفتشة جودة وتراخيص',
+        unionId: 'NR-BSR-3091',
+        gov: 'البصرة',
+        zone: 'البصرة - قضاء العشار والمركز'
+      },
+      omar_nineveh: {
+        name: 'م. عمر طارق العبيدي',
+        role: 'مفتش لجان صحية',
+        unionId: 'NR-NIN-5510',
+        gov: 'نينوى',
+        zone: 'نينوى - الموصل الجانب الأيمن'
+      }
+    };
+
+    // Haversine Distance
+    function getHaversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // meters
+      const rad = Math.PI / 180;
+      const dLat = (lat2 - lat1) * rad;
+      const dLon = (lon2 - lon1) * rad;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.round(R * c);
+    }
+
+    // Initialize Page on Load
+    window.addEventListener('DOMContentLoaded', async () => {
+      updateLiveClock();
+      setInterval(updateLiveClock, 30000);
+      await loadPlatformData();
+      initLeafletMap();
+      renderInspectorProfile();
+      simulateScan('NR-BAG-2021-8841'); // auto-fill sample nurse scan
+    });
+
+    function updateLiveClock() {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const isPm = hours >= 12;
+      hours = hours % 12 || 12;
+      const timeEl = document.getElementById('status-live-time');
+      if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
+    }
+
+    // Load Live Data from Server APIs
+    async function loadPlatformData() {
+      try {
+        const [facRes, assignRes, nurseRes] = await Promise.all([
+          fetch('/api/facilities').then(r => r.json()).catch(() => []),
+          fetch('/api/assignments').then(r => r.json()).catch(() => []),
+          fetch('/api/nurses').then(r => r.json()).catch(() => [])
+        ]);
+
+        state.facilities = facRes.length ? facRes : getFallbackFacilities();
+        state.assignments = assignRes.length ? assignRes : [];
+        state.nurses = nurseRes.length ? nurseRes : [];
+
+        populateFacilitiesDropdown();
+        populateTasksList();
+        populateViolationsFacilitiesDropdown();
+        renderViolationsHistory();
+      } catch (err) {
+        console.warn('Using local fallback data:', err);
+        state.facilities = getFallbackFacilities();
+        populateFacilitiesDropdown();
+      }
+    }
+
+    // Fallback facilities if server is offline
+    function getFallbackFacilities() {
+      return [
+        {
+          id: 'fac_1',
+          licenseNumber: 'LIC-2026-001',
+          name: 'مستشفى الدولي الخيري للأمراض والجراحة',
+          type: 'مستشفى أهلي',
+          ownerName: 'د. صادق الجبوري',
+          ownerPhone: '07701234567',
+          latitude: 33.3085,
+          longitude: 44.3720,
+          addressDetail: 'بغداد - الحارثية - شارع الكندي',
+          licenseStatus: 'LICENSED'
+        },
+        {
+          id: 'fac_2',
+          licenseNumber: 'LIC-2026-002',
+          name: 'عيادة المنصور للخدمات التمريضية والضماد المتقدم',
+          type: 'عيادة تمريضية',
+          ownerName: 'ممرض جامعي أحمد جاسم',
+          ownerPhone: '07709876543',
+          latitude: 33.3150,
+          longitude: 44.3510,
+          addressDetail: 'بغداد - المنصور - شارع الأميرات',
+          licenseStatus: 'LICENSED'
+        },
+        {
+          id: 'fac_3',
+          licenseNumber: 'LIC-2026-003',
+          name: 'مركز دجلة التمريضي التخصصي ورعاية المسنين',
+          type: 'مركز تمريضي',
+          ownerName: 'ممرضة جامعية نور الهدى الكرخي',
+          ownerPhone: '07801122334',
+          latitude: 33.3012,
+          longitude: 44.4280,
+          addressDetail: 'بغداد - الكرادة - ساحة الواثق',
+          licenseStatus: 'PENDING'
+        }
+      ];
+    }
+
+    // Populate Facilities
+    function populateFacilitiesDropdown() {
+      const select = document.getElementById('active-facility-select');
+      if (!select) return;
+      select.innerHTML = '';
+      state.facilities.forEach((f, idx) => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name} (${f.type || 'عيادة'})`;
+        select.appendChild(opt);
+      });
+
+      if (state.facilities.length > 0) {
+        // Prefer the Mansoor clinic as default
+        const mansoor = state.facilities.find(f => f.name.includes('المنصور')) || state.facilities[0];
+        select.value = mansoor.id;
+        window.handleFacilitySelection(mansoor.id);
+      }
+
+      const countBadge = document.getElementById('facility-count-badge');
+      if (countBadge) countBadge.textContent = `${state.facilities.length} منشأة بالزون`;
+      const offlineCount = document.getElementById('offline-fac-count');
+      if (offlineCount) offlineCount.textContent = `${state.facilities.length} منشأة`;
+    }
+
+    // Populate Violations Dropdown
+    function populateViolationsFacilitiesDropdown() {
+      const select = document.getElementById('viol-fac-select');
+      if (!select) return;
+      select.innerHTML = '';
+      state.facilities.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name} - ${f.licenseNumber || ''}`;
+        select.appendChild(opt);
+      });
+    }
+
+    // Handle Facility Selection
+    window.handleFacilitySelection = function(facilityId) {
+      const fac = state.facilities.find(f => f.id === facilityId);
+      if (!fac) return;
+      state.activeFacility = fac;
+
+      // Update Card
+      document.getElementById('fac-card-name').textContent = fac.name;
+      document.getElementById('fac-card-license').textContent = fac.licenseNumber || 'LIC-2026-N/A';
+      document.getElementById('fac-card-type').textContent = fac.type || 'عيادة تمريضية';
+      document.getElementById('fac-card-owner').textContent = fac.ownerName || 'غير مسجل';
+      document.getElementById('fac-card-phone').textContent = fac.ownerPhone || '0770XXXXXXX';
+      document.getElementById('fac-card-address').textContent = fac.addressDetail || 'بغداد';
+
+      const inspName = document.getElementById('insp-form-facility-name');
+      if (inspName) inspName.textContent = fac.name;
+
+      const violSelect = document.getElementById('viol-fac-select');
+      if (violSelect) violSelect.value = fac.id;
+
+      // Reset check-in state
+      state.hasCheckedIn = false;
+      const checkinBtn = document.getElementById('btn-gps-checkin');
+      if (checkinBtn) {
+        checkinBtn.textContent = '✔ تأكيد الوصول (Check-In)';
+        checkinBtn.className = 'btn-app btn-app-accent';
+      }
+
+      updateGeofenceCalculation();
+      updateMapMarkers();
+    };
+
+    // Safe coordinate helpers
+    function sanitizeCoord(val, defaultVal) {
+      if (val === null || val === undefined) return defaultVal;
+      const n = typeof val === 'number' ? val : parseFloat(val);
+      return isNaN(n) ? defaultVal : n;
+    }
+
+    function getFacilityCoords(fac) {
+      if (!fac) return { lat: 33.3150, lng: 44.3510 };
+      const rawLat = fac.latitude !== undefined ? fac.latitude : (fac.lat !== undefined ? fac.lat : fac.centerLat);
+      const rawLng = fac.longitude !== undefined ? fac.longitude : (fac.lng !== undefined ? fac.lng : (fac.lon !== undefined ? fac.lon : fac.centerLng));
+      return {
+        lat: sanitizeCoord(rawLat, 33.3150),
+        lng: sanitizeCoord(rawLng, 44.3510)
+      };
+    }
+
+    // Geofencing Distance Calculation
+    function updateGeofenceCalculation() {
+      if (!state.activeFacility) return;
+      const inspectorLat = sanitizeCoord(state.gps?.lat, 33.3150);
+      const inspectorLng = sanitizeCoord(state.gps?.lng, 44.3510);
+      state.gps.lat = inspectorLat;
+      state.gps.lng = inspectorLng;
+
+      const facCoords = getFacilityCoords(state.activeFacility);
+      const dist = getHaversineDistance(inspectorLat, inspectorLng, facCoords.lat, facCoords.lng);
+      const textEl = document.getElementById('distance-meters-text');
+      const badgeEl = document.getElementById('distance-badge');
+
+      if (dist <= 200) {
+        if (textEl) textEl.textContent = `${dist} متر (أنت بالموقع)`;
+        if (badgeEl) {
+          badgeEl.textContent = 'ضمن النطاق (مسموح)';
+          badgeEl.style.background = '#dcfce7';
+          badgeEl.style.color = '#16a34a';
+        }
+      } else {
+        const kmStr = dist > 1000 ? ` (${(dist/1000).toFixed(1)} كم)` : '';
+        if (textEl) textEl.textContent = `${dist.toLocaleString()} متر${kmStr}`;
+        if (badgeEl) {
+          badgeEl.textContent = 'خارج النطاق';
+          badgeEl.style.background = '#fee2e2';
+          badgeEl.style.color = '#ef4444';
+        }
+      }
+    }
+
+    // Leaflet Mini Map Initializer
+    function initLeafletMap() {
+      const container = document.getElementById('mobile-leaflet-map');
+      if (!container || typeof L === 'undefined') return;
+
+      const inspectorLat = sanitizeCoord(state.gps?.lat, 33.3150);
+      const inspectorLng = sanitizeCoord(state.gps?.lng, 44.3510);
+      state.gps.lat = inspectorLat;
+      state.gps.lng = inspectorLng;
+
+      try {
+        state.map = L.map('mobile-leaflet-map', {
+          attributionControl: false,
+          zoomControl: false
+        }).setView([inspectorLat, inspectorLng], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18
+        }).addTo(state.map);
+
+        updateMapMarkers();
+      } catch (err) {
+        console.error("Leaflet init error:", err);
+      }
+    }
+
+    // Update Map Markers & Geofence Circle
+    function updateMapMarkers() {
+      if (!state.map || typeof L === 'undefined') return;
+
+      // Clear old
+      try {
+        if (state.inspectorMarker) state.map.removeLayer(state.inspectorMarker);
+        if (state.facilityMarker) state.map.removeLayer(state.facilityMarker);
+        if (state.geofenceCircle) state.map.removeLayer(state.geofenceCircle);
+      } catch (e) {
+        console.warn('Error removing map layers:', e);
+      }
+
+      const inspectorLat = sanitizeCoord(state.gps?.lat, 33.3150);
+      const inspectorLng = sanitizeCoord(state.gps?.lng, 44.3510);
+      state.gps.lat = inspectorLat;
+      state.gps.lng = inspectorLng;
+
+      const facCoords = getFacilityCoords(state.activeFacility);
+      const facLat = facCoords.lat;
+      const facLng = facCoords.lng;
+
+      // Inspector Icon
+      const inspectorIcon = L.divIcon({
+        className: 'custom-pin-inspector',
+        html: '<div style="background:#2C5EAD; width:24px; height:24px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 2px 6px rgba(0,0,0,0.4); color:white;">📍</div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      // Facility Icon
+      const facilityIcon = L.divIcon({
+        className: 'custom-pin-fac',
+        html: '<div style="background:#0E9F5A; width:26px; height:26px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,0.4); color:white;">🏥</div>',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+
+      try {
+        state.inspectorMarker = L.marker([inspectorLat, inspectorLng], { icon: inspectorIcon })
+          .addTo(state.map)
+          .bindPopup('<b>موقع المفتش الحالي</b>');
+
+        state.facilityMarker = L.marker([facLat, facLng], { icon: facilityIcon })
+          .addTo(state.map)
+          .bindPopup(`<b>${state.activeFacility ? (state.activeFacility.name || 'المنشأة') : 'المنشأة'}</b>`);
+
+        // 200m Geofence Circle around target facility
+        state.geofenceCircle = L.circle([facLat, facLng], {
+          color: '#0E9F5A',
+          fillColor: '#0E9F5A',
+          fillOpacity: 0.15,
+          radius: 200
+        }).addTo(state.map);
+
+        // Fit bounds to show both
+        const bounds = L.latLngBounds([
+          [inspectorLat, inspectorLng],
+          [facLat, facLng]
+        ]);
+        if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+          state.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+        } else {
+          state.map.setView([inspectorLat, inspectorLng], 14);
+        }
+      } catch (err) {
+        console.error('Error in updateMapMarkers:', err);
+      }
+    }
+
+    // Check-In Action
+    window.performGpsCheckIn = function() {
+      if (!state.activeFacility) return;
+      const inspectorLat = sanitizeCoord(state.gps?.lat, 33.3150);
+      const inspectorLng = sanitizeCoord(state.gps?.lng, 44.3510);
+      state.gps.lat = inspectorLat;
+      state.gps.lng = inspectorLng;
+
+      const facCoords = getFacilityCoords(state.activeFacility);
+      const dist = getHaversineDistance(inspectorLat, inspectorLng, facCoords.lat, facCoords.lng);
+
+      const btn = document.getElementById('btn-gps-checkin');
+
+      if (dist <= 200) {
+        state.hasCheckedIn = true;
+        if (btn) {
+          btn.textContent = '✅ تم توثيق الوصول بنجاح (Check-In Verified)';
+          btn.className = 'btn-app btn-app-primary';
+        }
+        alert(`✅ ممتاز! تم التحقق الجغرافي بنجاح.\nأنت الآن داخل المنشأة (المسافة: ${dist} متر).\nيمكنك البدء في استمارة الكشف والتقاط الصور.`);
+      } else {
+        alert(`⚠️ تنبيه التحقق الجغرافي:\nأنت بعيد عن المنشأة بمقدار ${dist.toLocaleString()} متر!\nوفقاً للوائح النقابة، يجب أن يكون المفتش ضمن 200 متر لتأكيد الوصول.\n\n(نصيحة للمحاكي: اضغط على زر "⚡ وصول سريع" لمحاكاة تواجدك داخل العيادة).`);
+      }
+    };
+
+    // Teleport simulator to facility location
+    window.teleportToFacility = function() {
+      if (!state.activeFacility) return;
+      const facCoords = getFacilityCoords(state.activeFacility);
+      state.gps.lat = facCoords.lat + 0.0002; // inside ~25 meters
+      state.gps.lng = facCoords.lng + 0.0002;
+      state.gps.name = `قرب ${state.activeFacility.name || 'المنشأة'} (داخل النطاق)`;
+      updateGeofenceCalculation();
+      updateMapMarkers();
+      window.performGpsCheckIn();
+    };
+
+    // Open External Maps
+    window.openExternalMaps = function() {
+      if (!state.activeFacility) return;
+      const facCoords = getFacilityCoords(state.activeFacility);
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${facCoords.lat},${facCoords.lng}`;
+      window.open(url, '_blank');
+    };
+
+    // Switch Tabs
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('.pwa-nav-item').forEach(btn => {
+        if (btn.getAttribute('data-target') === tabId) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      if (tabId === 'tab-home' && state.map) {
+        setTimeout(() => state.map.invalidateSize(), 200);
+      }
+    };
+
+    // Handle Simulator GPS Change
+    window.handleSimGpsChange = function(presetKey) {
+      if (presetKey === 'real_device') {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              const lat = sanitizeCoord(pos.coords?.latitude, 33.3150);
+              const lng = sanitizeCoord(pos.coords?.longitude, 44.3510);
+              state.gps.lat = lat;
+              state.gps.lng = lng;
+              state.gps.name = 'موقعي الفعلي (GPS جهازك)';
+              updateGeofenceCalculation();
+              updateMapMarkers();
+              alert(`📍 تم قراءة موقع جهازك الفعلي:\nالعرض: ${state.gps.lat.toFixed(4)}\nالطول: ${state.gps.lng.toFixed(4)}`);
+            },
+            err => alert('تعذر قراءة GPS الجهاز. تأكد من تفعيل خدمة الموقع.')
+          );
+        } else {
+          alert('متصفحك لا يدعم Geolocation.');
+        }
+        return;
+      }
+
+      const preset = GPS_PRESETS[presetKey];
+      if (preset) {
+        state.gps = {
+          lat: sanitizeCoord(preset.lat, 33.3150),
+          lng: sanitizeCoord(preset.lng, 44.3510),
+          name: preset.name || 'موقع محدد'
+        };
+        updateGeofenceCalculation();
+        updateMapMarkers();
+      }
+    };
+
+    // Handle Inspector Switcher
+    window.handleInspectorChange = function(inspKey) {
+      const insp = INSPECTORS[inspKey];
+      if (!insp) return;
+      state.inspector = { id: inspKey, ...insp };
+      renderInspectorProfile();
+    };
+
+    function renderInspectorProfile() {
+      if (document.getElementById('app-user-name')) {
+        document.getElementById('app-user-name').textContent = state.inspector.name;
+      }
+      if (document.getElementById('dropdown-user-fullname')) {
+        document.getElementById('dropdown-user-fullname').textContent = state.inspector.name;
+      }
+      if (document.getElementById('tab-more-name')) {
+        document.getElementById('tab-more-name').textContent = state.inspector.name;
+      }
+      if (document.getElementById('modal-input-name')) {
+        document.getElementById('modal-input-name').value = state.inspector.name;
+      }
+      if (document.getElementById('app-user-role')) {
+        document.getElementById('app-user-role').textContent = 'لجنة الانضباط - INS';
+      }
+      if (document.getElementById('app-assigned-zone')) {
+        document.getElementById('app-assigned-zone').textContent = state.inspector.zone;
+      }
+      if (document.getElementById('modal-input-zone')) {
+        document.getElementById('modal-input-zone').value = state.inspector.zone;
+      }
+      if (document.getElementById('modal-input-unionid')) {
+        document.getElementById('modal-input-unionid').value = state.inspector.unionId || 'NR-IRQ-001';
+      }
+      if (document.getElementById('profile-name-large')) {
+        document.getElementById('profile-name-large').textContent = state.inspector.name;
+      }
+      if (document.getElementById('profile-role-large')) {
+        document.getElementById('profile-role-large').textContent = state.inspector.role;
+      }
+    }
+
+    // Handle Network Toggle
+    window.handleNetworkToggle = function(val) {
+      state.isOnline = val === 'online';
+      const badge = document.getElementById('app-network-badge');
+      if (state.isOnline) {
+        badge.textContent = '🟢 أونلاين';
+        badge.className = 'badge-status badge-online';
+      } else {
+        badge.textContent = '🔴 أوفلاين';
+        badge.className = 'badge-status badge-offline';
+        alert('📡 تم تفعيل وضع أوفلاين (Offline Mode):\nسيتم حفظ الكشوفات والمخالفات في الذاكرة المحلية وتجهيزها للمزامنة التلقائية عند عودة الإنترنت.');
+      }
+    };
+
+    // Display Mode Switcher
+    window.setMode = function(mode) {
+      const body = document.body;
+      const btnDev = document.getElementById('btn-device-mode');
+      const btnFull = document.getElementById('btn-full-mode');
+
+      if (mode === 'fullscreen') {
+        body.classList.add('fullscreen-mode');
+        btnDev.classList.remove('active');
+        btnFull.classList.add('active');
+      } else {
+        body.classList.remove('fullscreen-mode');
+        btnDev.classList.add('active');
+        btnFull.classList.remove('active');
+      }
+
+      if (state.map) setTimeout(() => state.map.invalidateSize(), 300);
+    };
+
+    /* ==========================================================================
+       USER DROPDOWN MENU & THEME MANAGEMENT (REQUIREMENTS 1, 2, 3)
+       ========================================================================== */
+
+    // Close all open header dropdown menus
+    window.closeAllDropdowns = function() {
+      const userMenu = document.getElementById('user-dropdown-menu');
+      const themeMenu = document.getElementById('theme-dropdown-menu');
+      const chevron = document.getElementById('user-menu-chevron');
+      if (userMenu) userMenu.style.display = 'none';
+      if (themeMenu) themeMenu.style.display = 'none';
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+    };
+
+    // Toggle User Dropdown (under username)
+    window.toggleUserDropdown = function(e) {
+      if (e) e.stopPropagation();
+      const userMenu = document.getElementById('user-dropdown-menu');
+      const themeMenu = document.getElementById('theme-dropdown-menu');
+      const chevron = document.getElementById('user-menu-chevron');
+      if (!userMenu) return;
+
+      if (themeMenu) themeMenu.style.display = 'none';
+
+      const isOpening = userMenu.style.display === 'none' || userMenu.style.display === '';
+      userMenu.style.display = isOpening ? 'block' : 'none';
+      if (chevron) {
+        chevron.style.transform = isOpening ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    };
+
+    // Toggle 7-Themes Dropdown (left of screen)
+    window.toggleThemeMenu = function(e) {
+      if (e) e.stopPropagation();
+      const themeMenu = document.getElementById('theme-dropdown-menu');
+      const userMenu = document.getElementById('user-dropdown-menu');
+      const chevron = document.getElementById('user-menu-chevron');
+      if (!themeMenu) return;
+
+      if (userMenu) userMenu.style.display = 'none';
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+
+      const isOpening = themeMenu.style.display === 'none' || themeMenu.style.display === '';
+      themeMenu.style.display = isOpening ? 'block' : 'none';
+    };
+
+    // Global click listener to close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      const userMenu = document.getElementById('user-dropdown-menu');
+      const themeMenu = document.getElementById('theme-dropdown-menu');
+      const userBtn = document.getElementById('userMenuToggleBtn');
+      const themeBtn = document.getElementById('themeToggleBtn');
+
+      const isInsideUser = (userMenu && userMenu.contains(e.target)) || (userBtn && userBtn.contains(e.target));
+      const isInsideTheme = (themeMenu && themeMenu.contains(e.target)) || (themeBtn && themeBtn.contains(e.target));
+
+      if (!isInsideUser && !isInsideTheme) {
+        window.closeAllDropdowns();
+      }
+    });
+
+    // 7 PRESTIGE THEMES: نهاري, ليلي, ملكي, زمردي, شفق, نيلي, عنبري
+    const PRESTIGE_THEMES = [
+      { name: 'نهاري', color: '#2C5EAD' },
+      { name: 'ليلي', color: '#3B82F6' },
+      { name: 'ملكي', color: '#6366F1' },
+      { name: 'زمردي', color: '#10B981' },
+      { name: 'شفق', color: '#E11D48' },
+      { name: 'نيلي', color: '#06B6D4' },
+      { name: 'عنبري', color: '#D97706' }
+    ];
+
+    // Select and apply one of the 7 themes
+    window.selectTheme = function(themeName) {
+      const wrapper = document.getElementById('deviceWrapper');
+      if (!wrapper) return;
+
+      wrapper.setAttribute('data-theme', themeName);
+      try {
+        localStorage.setItem('ins_pwa_theme', themeName);
+      } catch (err) {}
+
+      // Update UI active state in theme menu
+      document.querySelectorAll('#theme-dropdown-menu .theme-option').forEach(btn => {
+        if (btn.getAttribute('data-theme-name') === themeName) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // Update labels and dot indicators
+      const label = document.getElementById('current-theme-label');
+      if (label) label.textContent = themeName;
+
+      const badge = document.getElementById('more-tab-theme-badge');
+      if (badge) badge.textContent = themeName;
+
+      const themeObj = PRESTIGE_THEMES.find(t => t.name === themeName);
+      const dot = document.getElementById('theme-btn-indicator');
+      if (dot && themeObj) {
+        dot.style.background = themeObj.color;
+        dot.style.boxShadow = `0 0 8px ${themeObj.color}`;
+      }
+
+      window.closeAllDropdowns();
+    };
+
+    // Toggle button on top-left: cycles through the 7 themes or opens menu
+    window.toggleDeviceTheme = function() {
+      const wrapper = document.getElementById('deviceWrapper');
+      const current = wrapper.getAttribute('data-theme') || 'نهاري';
+      const currentIndex = PRESTIGE_THEMES.findIndex(t => t.name === current);
+      const nextIndex = (currentIndex + 1) % PRESTIGE_THEMES.length;
+      const nextTheme = PRESTIGE_THEMES[nextIndex].name;
+      window.selectTheme(nextTheme);
+    };
+
+    /* ==========================================================================
+       USER ACCOUNT MANAGEMENT & PHOTO/PHONE EDITING (REQUIREMENT 1)
+       ========================================================================== */
+
+    let userAvatarDataUrl = null;
+
+    // Open User Account Modal
+    window.openAccountModal = function() {
+      const modal = document.getElementById('user-account-modal');
+      const alertBox = document.getElementById('modal-account-alert');
+      if (alertBox) alertBox.style.display = 'none';
+
+      // Load current values
+      const currentName = document.getElementById('app-user-name')?.textContent || 'د. فراس الموسوي';
+      const currentPhone = document.getElementById('dropdown-user-phone')?.textContent || '07701234567';
+      const headerAvatarSrc = document.getElementById('app-header-avatar')?.getAttribute('src') || '/public/icon.png';
+
+      if (document.getElementById('modal-input-name')) {
+        document.getElementById('modal-input-name').value = currentName;
+      }
+      if (document.getElementById('modal-input-phone')) {
+        document.getElementById('modal-input-phone').value = currentPhone;
+      }
+      if (document.getElementById('modal-user-avatar')) {
+        document.getElementById('modal-user-avatar').src = headerAvatarSrc;
+      }
+
+      if (modal) modal.style.display = 'flex';
+    };
+
+    // Close User Account Modal
+    window.closeAccountModal = function() {
+      const modal = document.getElementById('user-account-modal');
+      if (modal) modal.style.display = 'none';
+    };
+
+    // Handle profile avatar selection from device storage
+    window.handleAvatarFileSelect = function(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP).');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert('حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 5 ميجابايت.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        userAvatarDataUrl = e.target.result;
+        const modalAvatar = document.getElementById('modal-user-avatar');
+        if (modalAvatar) {
+          modalAvatar.src = userAvatarDataUrl;
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // Reset avatar back to official emblem
+    window.resetAvatarToDefault = function() {
+      userAvatarDataUrl = '/public/icon.png';
+      const modalAvatar = document.getElementById('modal-user-avatar');
+      if (modalAvatar) {
+        modalAvatar.src = '/public/icon.png';
+      }
+    };
+
+    // Save changes to user account (Name, Phone number, Profile photo)
+    window.saveAccountChanges = function() {
+      const newName = (document.getElementById('modal-input-name')?.value || '').trim();
+      const newPhone = (document.getElementById('modal-input-phone')?.value || '').trim();
+
+      if (!newName) {
+        alert('يرجى إدخال اسم عضو اللجنة.');
+        return;
+      }
+
+      if (!newPhone || newPhone.length < 8) {
+        alert('يرجى إدخال رقم هاتف معتمد صحيح (مثال: 07701234567).');
+        return;
+      }
+
+      state.inspector.name = newName;
+
+      // Update UI elements across the PWA
+      if (document.getElementById('app-user-name')) {
+        document.getElementById('app-user-name').textContent = newName;
+      }
+      if (document.getElementById('dropdown-user-fullname')) {
+        document.getElementById('dropdown-user-fullname').textContent = newName;
+      }
+      if (document.getElementById('dropdown-user-phone')) {
+        document.getElementById('dropdown-user-phone').textContent = newPhone;
+      }
+      if (document.getElementById('tab-more-name')) {
+        document.getElementById('tab-more-name').textContent = newName;
+      }
+
+      // Update profile picture if modified
+      const avatarSrc = userAvatarDataUrl || document.getElementById('modal-user-avatar')?.getAttribute('src');
+      if (avatarSrc) {
+        const headerAvatar = document.getElementById('app-header-avatar');
+        const tabMoreAvatar = document.getElementById('tab-more-avatar');
+        if (headerAvatar) headerAvatar.src = avatarSrc;
+        if (tabMoreAvatar) tabMoreAvatar.src = avatarSrc;
+      }
+
+      // Persist in local storage
+      try {
+        const profileToSave = {
+          name: newName,
+          phone: newPhone,
+          avatar: avatarSrc || '/public/icon.png'
+        };
+        localStorage.setItem('ins_user_profile', JSON.stringify(profileToSave));
+      } catch (e) {}
+
+      const alertBox = document.getElementById('modal-account-alert');
+      if (alertBox) {
+        alertBox.style.display = 'block';
+      }
+
+      setTimeout(() => {
+        window.closeAccountModal();
+      }, 900);
+    };
+
+    /* ==========================================================================
+       LOGOUT CONFIRMATION & AUTH (REQUIREMENT 2)
+       ========================================================================== */
+
+    window.confirmLogout = function() {
+      const modal = document.getElementById('logout-confirm-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+
+    window.closeLogoutModal = function() {
+      const modal = document.getElementById('logout-confirm-modal');
+      if (modal) modal.style.display = 'none';
+    };
+
+    window.performLogout = function() {
+      window.closeLogoutModal();
+      alert('🔒 تم تسجيل الخروج بنجاح من تطبيق لجنة الانضباط - INS.\nتم تأمين الجلسة وحفظ كافة البيانات محلياً.');
+      // Optional redirect to login page if desired
+      if (window.location.pathname.indexOf('inspector.html') !== -1) {
+        // stay or navigate gracefully
+      }
+    };
+
+    /* ==========================================================================
+       REGULATIONS & EMERGENCY MODALS
+       ========================================================================== */
+
+    window.openRegulationsModal = function() {
+      const modal = document.getElementById('regulations-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+
+    window.closeRegulationsModal = function() {
+      const modal = document.getElementById('regulations-modal');
+      if (modal) modal.style.display = 'none';
+    };
+
+    window.openEmergencyModal = function() {
+      const modal = document.getElementById('emergency-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+
+    window.closeEmergencyModal = function() {
+      const modal = document.getElementById('emergency-modal');
+      if (modal) modal.style.display = 'none';
+    };
+
+    window.sendEmergencyAlert = function(type) {
+      window.closeEmergencyModal();
+      const gpsInfo = `${state.gps.lat.toFixed(4)}, ${state.gps.lng.toFixed(4)} (${state.gps.name})`;
+      alert(`🚨 تم إرسال إشارة استغاثة عاجلة لغرفة العمليات المركزية:\nالنوع: ${type}\nالمفتش: ${state.inspector.name}\nالموقع: ${gpsInfo}\n\nيجري التنسيق الفوري مع الجهات الأمنية والرقابية المختصة.`);
+    };
+
+    // Load saved settings on app startup
+    (function initSavedSettings() {
+      try {
+        // Load saved theme
+        const savedTheme = localStorage.getItem('ins_pwa_theme') || 'نهاري';
+        window.selectTheme(savedTheme);
+
+        // Load saved user profile
+        const savedProfileStr = localStorage.getItem('ins_user_profile');
+        if (savedProfileStr) {
+          const profile = JSON.parse(savedProfileStr);
+          if (profile.name) {
+            state.inspector.name = profile.name;
+            if (document.getElementById('app-user-name')) document.getElementById('app-user-name').textContent = profile.name;
+            if (document.getElementById('dropdown-user-fullname')) document.getElementById('dropdown-user-fullname').textContent = profile.name;
+            if (document.getElementById('tab-more-name')) document.getElementById('tab-more-name').textContent = profile.name;
+          }
+          if (profile.phone && document.getElementById('dropdown-user-phone')) {
+            document.getElementById('dropdown-user-phone').textContent = profile.phone;
+          }
+          if (profile.avatar) {
+            userAvatarDataUrl = profile.avatar;
+            const hAvatar = document.getElementById('app-header-avatar');
+            const mAvatar = document.getElementById('tab-more-avatar');
+            if (hAvatar) hAvatar.src = profile.avatar;
+            if (mAvatar) mAvatar.src = profile.avatar;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load saved PWA settings', err);
+      }
+    })();
+
+    // Populate Tasks List in Tab 2
+    function populateTasksList() {
+      const container = document.getElementById('tasks-queue-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const tasks = [
+        { code: 'INSP-2026-01', name: 'عيادة المنصور للخدمات التمريضية', priority: 'عالية', status: 'جاري الكشف' },
+        { code: 'INSP-2026-02', name: 'مستشفى الدولي الخيري', priority: 'عادية', status: 'قيد الانتظار' },
+        { code: 'INSP-2026-03', name: 'مركز دجلة التمريضي', priority: 'إنذار سابق', status: 'قيد الانتظار' }
+      ];
+
+      tasks.forEach(t => {
+        const item = document.createElement('div');
+        item.style.background = 'var(--device-bg)';
+        item.style.padding = '8px';
+        item.style.borderRadius = '8px';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.style.fontSize = '11px';
+
+        item.innerHTML = `
+          <div>
+            <b>${t.name}</b>
+            <div style="font-size:9.5px; color:var(--text-muted);">${t.code} | أولوية: ${t.priority}</div>
+          </div>
+          <span class="badge-status ${t.status.includes('جاري') ? 'badge-online' : ''}" style="border:1px solid var(--border);">${t.status}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Submit Field Inspection
+    window.submitFieldInspection = async function(e) {
+      e.preventDefault();
+      if (!state.activeFacility) return;
+
+      const verdict = document.getElementById('insp-verdict').value;
+      const notes = document.getElementById('insp-notes').value;
+
+      const safetyChecklist = {
+        hasAutoclaveSterilizer: document.getElementById('chk-has-autoclave')?.checked ?? true,
+        hasSafetyBox: document.getElementById('chk-has-safetybox')?.checked ?? true,
+        hasExpiredMedications: document.getElementById('chk-has-expired-meds')?.checked ?? false,
+        hasUnlicensedForeignStaff: document.getElementById('chk-has-unlicensed-foreign')?.checked ?? false,
+        isExceedingScopeOfPractice: document.getElementById('chk-is-exceeding-scope')?.checked ?? false
+      };
+
+      const reportPayload = {
+        assignmentId: 'assign_' + Date.now(),
+        facilityId: state.activeFacility.id,
+        facilityName: state.activeFacility.name,
+        inspectorId: state.inspector.id,
+        inspectorName: state.inspector.name,
+        inspectionDate: new Date().toISOString().split('T')[0],
+        overallStatus: verdict,
+        hygieneScore: 92,
+        licensingScore: 95,
+        wasteManagementScore: 88,
+        staffComplianceScore: 90,
+        safetyChecklist: safetyChecklist,
+        inspectorNotes: notes,
+        gpsLatitude: state.gps.lat,
+        gpsLongitude: state.gps.lng,
+        photosCount: 4,
+        isSynced: state.isOnline
+      };
+
+      if (state.isOnline) {
+        try {
+          await fetch('/api/inspections', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reportPayload)
+          });
+        } catch (err) {
+          console.warn('Network sync failed, saving locally:', err);
+        }
+      }
+
+      // Update counters
+      const doneEl = document.getElementById('stat-tasks-done');
+      if (doneEl) doneEl.textContent = Number(doneEl.textContent || 1) + 1;
+
+      alert(`✅ تم اعتماد وإرسال محضر الكشف بنجاح!\nالمنشأة: ${state.activeFacility.name}\nالنتيجة: ${verdict}\nالتوثيق: 4 صور + إحداثيات GPS الموثقة.`);
+      window.switchTab('tab-home');
+    };
+
+    // QR & ID Verification Simulator
+    window.simulateScan = function(code) {
+      const input = document.getElementById('manual-id-input');
+      if (input) input.value = code;
+      window.verifyNurseId(code);
+    };
+
+    window.verifyNurseId = function(queryCode) {
+      const code = (queryCode || '').trim();
+      const container = document.getElementById('verification-result-container');
+      if (!container) return;
+
+      // Sample verified nurses database
+      const MOCK_NURSES = {
+        'NR-BAG-2021-8841': {
+          name: 'عمر خالد خليل العبيدي',
+          nationalId: '199284710293',
+          title: 'ممرض جامعي أخصائي عناية مركزة وضماد',
+          degree: 'بكالوريوس علوم التمريض - جامعة بغداد',
+          gradYear: 2017,
+          regYear: 2018,
+          bloodType: 'O+',
+          status: 'ACTIVE',
+          expiry: '2027-08-30'
+        },
+        'NR-BSR-2019-4412': {
+          name: 'زينب جاسم خلف الموسوي',
+          nationalId: '199511029384',
+          title: 'ممرضة جامعية أخصائية قبالة وتوليد',
+          degree: 'بكالوريوس تمريض - جامعة البصرة',
+          gradYear: 2018,
+          regYear: 2019,
+          bloodType: 'A+',
+          status: 'ACTIVE',
+          expiry: '2026-12-31'
+        },
+        'NR-EXP-2017-9910': {
+          name: 'حيدر سالم عطية الشمري',
+          nationalId: '198902837461',
+          title: 'مساعد تمريض أول',
+          degree: 'دبلوم معهد المهن الصحية',
+          gradYear: 2014,
+          regYear: 2015,
+          bloodType: 'B+',
+          status: 'EXPIRED',
+          expiry: '2023-01-15'
+        }
+      };
+
+      const nurse = MOCK_NURSES[code];
+
+      if (!nurse) {
+        container.innerHTML = `
+          <div class="id-verification-card" style="border-color:#ef4444; background:linear-gradient(135deg, #3f1d24, #1e1115);">
+            <div class="id-expired-stamp">⚠️ غير مسجل</div>
+            <h3 style="font-size:13px; color:#fca5a5; margin-bottom:4px;">❌ لم يتم العثور على هوية مطابقة</h3>
+            <p style="font-size:10.5px; color:#cbd5e1; line-height:1.5;">
+              الرمز المُدخل (<b>${code}</b>) غير موجود في السجل الوطني لنقابة التمريض العراقية.<br>
+              يُشتبه بانتحال صفة كادر تمريضي أو عمل غير قانوني.
+            </p>
+            <div style="margin-top:10px;">
+              <button class="btn-app btn-app-danger" style="width:100%; font-size:11px;" onclick="window.switchTab('tab-violations')">
+                🚨 تحرير محضر مخالفة انتحال صفة فوراً
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const isActive = nurse.status === 'ACTIVE';
+
+      container.innerHTML = `
+        <div class="id-verification-card">
+          <div class="${isActive ? 'id-verified-stamp' : 'id-expired-stamp'}">
+            ${isActive ? '✔ مرخص وساري' : '✖ منتهي الصلاحية'}
+          </div>
+          
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+            <div style="width:40px; height:40px; border-radius:50%; background:var(--primary-light); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px;">
+              ${nurse.name.charAt(0)}
+            </div>
+            <div>
+              <h3 style="font-size:13px; font-weight:700;">${nurse.name}</h3>
+              <p style="font-size:10px; color:#94a3b8;">${nurse.title}</p>
+            </div>
+          </div>
+
+          <div style="font-size:10.5px; line-height:1.7; border-top:1px solid #334155; padding-top:6px;">
+            <div><b>الرقم النقابي:</b> <span dir="ltr" style="font-family:monospace; color:#38bdf8;">${code}</span></div>
+            <div><b>المؤهل:</b> ${nurse.degree} (${nurse.gradYear})</div>
+            <div><b>صلاحية الهوية:</b> <span style="color:${isActive ? '#4ade80' : '#f87171'}">${nurse.expiry}</span></div>
+            <div><b>فصيلة الدم:</b> ${nurse.bloodType}</div>
+          </div>
+
+          <div style="display:flex; gap:6px; margin-top:10px;">
+            <button class="btn-app btn-app-primary" style="flex:1; font-size:10.5px;" onclick="alert('✅ تم ربط وتوثيق حضور الكادر (${nurse.name}) في محضر الكشف الحالي.')">
+              ✔ اعتماد الكادر بالكشف
+            </button>
+            ${!isActive ? `
+              <button class="btn-app btn-app-danger" style="font-size:10.5px;" onclick="window.switchTab('tab-violations')">
+                🚩 تحرير إنذار
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    };
+
+    // Submit Violation
+    window.handleViolationSubmit = async function(e) {
+      e.preventDefault();
+      const facId = document.getElementById('viol-fac-select').value;
+      const type = document.getElementById('viol-type-select').value;
+      const severity = document.getElementById('viol-severity-select').value;
+      const desc = document.getElementById('viol-desc-input').value;
+      const requiresClosure = document.getElementById('viol-closure-check').checked;
+
+      const targetFac = state.facilities.find(f => f.id === facId) || state.activeFacility;
+
+      const violPayload = {
+        id: 'viol_' + Date.now(),
+        facilityId: targetFac ? targetFac.id : 'unknown',
+        facilityName: targetFac ? targetFac.name : 'العيادة المخالفة',
+        violationType: type,
+        severity: severity,
+        description: desc,
+        requiresImmediateClosure: requiresClosure,
+        inspectorName: state.inspector.name,
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      if (state.isOnline) {
+        try {
+          await fetch('/api/violations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(violPayload)
+          });
+        } catch (err) {
+          console.warn('Saved offline:', err);
+        }
+      }
+
+      state.violations.unshift(violPayload);
+      renderViolationsHistory();
+
+      const violCountEl = document.getElementById('stat-violations-logged');
+      if (violCountEl) violCountEl.textContent = state.violations.length;
+
+      alert(`🚩 تم إصدار محضر المخالفة النقابي بنجاح!\nالمنشأة: ${violPayload.facilityName}\nرقم المحضر: CIT-${Date.now().toString().slice(-6)}\nالإجراء: ${severity}\n${requiresClosure ? '⚠️ تم رفع إخطار فوري لقيادة الشرطة بطلب الإغلاق والتشميع!' : ''}`);
+      document.getElementById('viol-desc-input').value = '';
+    };
+
+    function renderViolationsHistory() {
+      const container = document.getElementById('pwa-violations-history');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const list = state.violations.length ? state.violations : [
+        { facilityName: 'عيادة الشفاء للضماد', violationType: 'أدوية غير مرخصة', date: '2026-09-02', severity: 'MEDIUM' }
+      ];
+
+      list.slice(0, 3).forEach(v => {
+        const item = document.createElement('div');
+        item.style.background = 'var(--device-bg)';
+        item.style.padding = '8px';
+        item.style.borderRadius = '6px';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.innerHTML = `
+          <div>
+            <b>${v.facilityName}</b>
+            <div style="font-size:9.5px; color:var(--text-muted);">${v.violationType} | ${v.date}</div>
+          </div>
+          <span class="badge-status" style="background:#fee2e2; color:#ef4444;">${v.severity || 'مخالفة'}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Photo Upload Triggers
+    window.triggerPhotoUpload = function(index) {
+      const input = document.getElementById('hidden-file-input');
+      if (input) {
+        input.targetSlot = index;
+        input.click();
+      }
+    };
+
+    window.handlePhotoFilesSelected = function(files) {
+      if (!files || !files.length) return;
+      for (let i = 0; i < Math.min(files.length, 4); i++) {
+        const slot = document.getElementById(`slot-${i}`);
+        if (slot) {
+          const url = URL.createObjectURL(files[i]);
+          slot.innerHTML = `<img src="${url}" alt="صورة ${i+1}">`;
+        }
+      }
+      document.getElementById('photo-count-status').textContent = `✅ تم رفع ${files.length} صور`;
+    };
+
+    // Export Excel
+    window.exportInspectorExcel = function() {
+      const rows = [
+        ["رقم الكشف", "اسم المنشأة", "المحافظة", "المفتش", "التاريخ", "النتيجة"],
+        ["INSP-01", state.activeFacility ? state.activeFacility.name : "عيادة المنصور", "بغداد", state.inspector.name, new Date().toLocaleDateString('ar-IQ'), "مستوفٍ للشروط"],
+        ["INSP-02", "مستشفى الدولي الخيري", "بغداد", state.inspector.name, "2026-09-08", "إنذار أولي"],
+        ["INSP-03", "مركز دجلة التمريضي", "بغداد", state.inspector.name, "2026-09-07", "مستوفٍ للشروط"]
+      ];
+
+      let csvContent = "\uFEFF";
+      rows.forEach(r => csvContent += r.join(",") + "\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `سجل_تفتيش_${state.inspector.name.replace(/\s+/g, '_')}.csv`;
+      link.click();
+    };
+
+    // Export PDF
+    window.exportInspectorPdf = function() {
+      alert("📄 جاري إعداد وتوليد التقرير الميداني بصيغة PDF...\nيمكنك حفظه كـ PDF عبر نافذة الطباعة المنبثقة.");
+      window.print();
+    };
+
+    // Force Cloud Sync
+    window.forceDataSync = function() {
+      alert("🔄 تم بدء المزامنة السحابية مع قواعد بيانات نقابة التمريض:\nتم تحديث الكشوفات والمخالفات بنجاح.");
+    };
+
+    // Filter facilities list
+    window.filterFacilitiesList = function(keyword) {
+      const q = (keyword || '').toLowerCase().trim();
+      const select = document.getElementById('active-facility-select');
+      if (!select) return;
+      select.innerHTML = '';
+      const filtered = state.facilities.filter(f => 
+        (f.name && f.name.toLowerCase().includes(q)) ||
+        (f.licenseNumber && f.licenseNumber.toLowerCase().includes(q)) ||
+        (f.addressDetail && f.addressDetail.toLowerCase().includes(q))
+      );
+      filtered.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name} (${f.type || 'عيادة'})`;
+        select.appendChild(opt);
+      });
+      if (filtered.length) {
+        window.handleFacilitySelection(filtered[0].id);
+      }
+    };
+  </script>
+  <script type="module" src="/src/inspector_modules.js"></script>
+</body>
+</html>
