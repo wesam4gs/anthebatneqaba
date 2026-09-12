@@ -66,17 +66,8 @@ export default function App({ isMobileOnly = false }: AppProps) {
   };
   }
   }
-  if (isMobileOnly || (typeof window !== 'undefined' && (
-    window.location.pathname.startsWith('/mobile') ||
-    window.location.pathname.startsWith('/inspector') ||
-    window.location.hostname.includes('mopile') ||
-    window.location.hostname.includes('mobile') ||
-    window.location.hostname.includes('inspector')
-  ))) {
-    const fieldInsp = INITIAL_USERS.find(u => u.role === 'FIELD_INSPECTOR');
-    if (fieldInsp) return fieldInsp;
-  }
-  return INITIAL_USERS[0];
+  // No user session found, require login
+  return null;
   }); // Default: Syndicate President / High Command
  const [activeTab, setActiveTab] = useState<string>(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1231,6 +1222,7 @@ export default function App({ isMobileOnly = false }: AppProps) {
  </ExecutiveLayout>
  );
 }
+
 
 
 
