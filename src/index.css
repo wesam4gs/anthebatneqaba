@@ -514,3 +514,15 @@ body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-contai
 body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="hover:bg-[#1"]:hover {
   background-color: var(--theme-canvas) !important;
 }
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-slate-9"],
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-slate-8"] {
+  background-color: var(--theme-card-bg) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container div[class*="bg-slate-9"],
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container div[class*="bg-slate-8"] {
+  background-color: var(--theme-card-bg) !important;
+}
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="border-white\/1"],
+body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="border-white\/2"] {
+  border-color: var(--theme-card-border) !important;
+}
