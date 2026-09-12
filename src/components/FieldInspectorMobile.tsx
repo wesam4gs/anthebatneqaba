@@ -331,6 +331,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
 
   // Active Tab inside PWA Mobile App (with CHAT tab for field operations)
   const [homeView, setHomeView] = useState<'DASHBOARD' | 'TASKS'>('DASHBOARD');
+  const [showProfilePopup, setShowProfilePopup] = useState<boolean>(false);
   const [pwaTab, setPwaTab] = useState<'MISSION' | 'CHECKLIST' | 'SCANNER' | 'PHOTOS' | 'VIOLATIONS' | 'SIGNATURE' | 'CHAT' | 'MORE' | 'ACCOUNT' | 'TASKS_MORE' | 'INSPECT_FILES' | 'PATROL_FILES' | 'MY_ZONE' | 'SERVICES' | 'GUIDE' | 'SETTINGS'>('MISSION');
 
   // Checklist State
@@ -1027,7 +1028,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
 
             {/* Inspector Rounded Portrait Avatar (from reference design) */}
             <button
-              onClick={() => setPwaTab(pwaTab === 'ACCOUNT' ? 'MISSION' : 'ACCOUNT')}
+              onClick={() => setShowProfilePopup(true)}
               className="relative group transition active:scale-95 cursor-pointer"
               title="الملف التعريفي للمفتش"
             >
@@ -3520,7 +3521,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                         className="text-rose-400 hover:text-rose-300 font-black flex items-center gap-1 cursor-pointer"
                       >
                         <LogOut className="w-3 h-3" />
-                        <span>إنهاء الوردية</span>
+                        <span>تسجيل الخروج</span>
                       </button>
                     </div>
 
@@ -3975,11 +3976,55 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
           </div>
         </div>
       )}
+      {/* Profile Popup */}
+      {showProfilePopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in" onClick={() => setShowProfilePopup(false)}>
+          <div className="bg-slate-900/95 backdrop-blur-2xl rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/15 flex flex-col relative text-white ring-1 ring-white/10 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-emerald-500/20 to-teal-600/20"></div>
+            <div className="p-6 flex flex-col items-center relative z-10">
+              <button onClick={() => setShowProfilePopup(false)} className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full text-slate-300 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-700 shadow-lg bg-slate-800 mb-4">
+                {currentUser.avatar ? (
+                  <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" alt="Profile" className="w-full h-full object-cover" />
+                )}
+              </div>
+              
+              <h3 className="text-xl font-black text-white">{currentUser.name}</h3>
+              <p className="text-emerald-400 font-bold mt-1 text-sm">{currentUser.role === 'FIELD_INSPECTOR' ? 'مفتش ميداني' : currentUser.role}</p>
+              
+              <div className="mt-4 w-full space-y-2 text-sm text-slate-300">
+                <div className="flex justify-between items-center bg-slate-950/50 p-2.5 rounded-lg border border-white/5">
+                  <span>المحافظة:</span>
+                  <strong className="text-white">{currentUser.governorate || 'بغداد'}</strong>
+                </div>
+                <div className="flex justify-between items-center bg-slate-950/50 p-2.5 rounded-lg border border-white/5">
+                  <span>الرقم النقابي:</span>
+                  <strong className="text-white">{currentUser.badgeNumber || 'INS-IQ-001'}</strong>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (confirm('هل أنت متأكد من تسجيل الخروج من النظام؟')) {
+                    localStorage.clear();
+                    window.location.href = '/';
+                  }
+                }}
+                className="mt-6 w-full bg-rose-600 hover:bg-rose-500 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>تسجيل الخروج</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
-
-
-
-
 
