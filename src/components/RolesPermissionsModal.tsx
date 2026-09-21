@@ -292,7 +292,7 @@ export const RolesPermissionsModal: React.FC<RolesPermissionsModalProps> = ({
  <div className="flex items-center justify-between">
  <span className="text-slate-400">نطاق دردشة المفتشين:</span>
  <span className="font-bold">
- {isNationwide ? 'جميع غرف المحافظات الـ 18' : `غرفة ${u.provinceName || 'المحافظة'} فقط`}
+ {isNationwide ? 'جميع غرف المحافظات الـ 15' : `غرفة ${u.provinceName || 'المحافظة'} فقط`}
  </span>
  </div>
  </div>
@@ -353,7 +353,7 @@ export const RolesPermissionsModal: React.FC<RolesPermissionsModalProps> = ({
  <br />1. <strong>النقيب العام</strong> (د. فراس الموسوي)
  <br />2. <strong>نائب النقيب</strong> (أ. د. أحمد الحسيني)
  <br />3. <strong>مسؤول فرع بغداد والمقر العام</strong> (م. حيدر الموسوي)
- <br />صلاحية الوصول لكافة المحافظات وإصدار تعميم وتبليغ عام يصل فوراً لجميع فروع ومفتشي العراق الـ 18 عبر القناة المركزية وتطبيق المفتش.
+ <br />صلاحية الوصول لكافة المحافظات وإصدار تعميم وتبليغ عام يصل فوراً لجميع فروع ومفتشي العراق الـ 15 عبر القناة المركزية وتطبيق المفتش.
  </p>
  </div>
  </div>

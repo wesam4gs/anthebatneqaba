@@ -909,7 +909,7 @@ export const UsersManagement: React.FC<UsersManagementProps> = ({
                 onChange={(e) => setProvinceFilter(e.target.value)}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-bold text-slate-800 focus:border-amber-500 focus:outline-none"
               >
-                <option value="ALL">جميع المحافظات الـ 18</option>
+                <option value="ALL">جميع المحافظات الـ 15</option>
                 {provinces.map(p => (
                   <option key={p.id} value={p.id}>{p.nameAr}</option>
                 ))}

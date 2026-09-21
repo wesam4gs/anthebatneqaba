@@ -103,7 +103,7 @@ export const BranchOperationsChat: React.FC<BranchOperationsChatProps> = ({
  const nationalChannel = {
  id: 'national_broadcasts',
  name: 'القناة المركزية للتعميمات والتبليغات العامة',
- subtitle: 'المقر العام — شامل لكافة المحافظات الـ 18',
+ subtitle: 'المقر العام — شامل لكافة المحافظات الـ 15',
  badge: 'HQ-ALL',
  isNational: true,
  provinceId: 'all'
@@ -207,7 +207,7 @@ export const BranchOperationsChat: React.FC<BranchOperationsChatProps> = ({
  issuedBy: `${currentUser.name} (${getUserRoleTitle(currentUser)})`,
  targetScope: 'ALL_BRANCHES',
  issueDate: new Date().toISOString().split('T')[0],
- actionRequired: broadcastAction || 'تعميم نافذ على جميع فروع ولجان التفتيش في المحافظات الـ 18',
+ actionRequired: broadcastAction || 'تعميم نافذ على جميع فروع ولجان التفتيش في المحافظات الـ 15',
  isActive: true
  };
 
@@ -294,7 +294,7 @@ export const BranchOperationsChat: React.FC<BranchOperationsChatProps> = ({
  </div>
  <p className="text-xs text-slate-300 mt-1">
  {isNationwide 
- ? '⭐ تملك صلاحية الوصول والتنقل بين جميع غرف المحافظات الـ 18 وإصدار تبليغات عامة لكافة الفروع.' 
+ ? '⭐ تملك صلاحية الوصول والتنقل بين جميع غرف المحافظات الـ 15 وإصدار تبليغات عامة لكافة الفروع.' 
  : `🔒 تواصلك محصور داخل نطاق (${currentUser.provinceName}) فقط مع زملائك المفتشين، مع استلام التوجيهات العامة من المقر العام.`}
  </p>
  </div>

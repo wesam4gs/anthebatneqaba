@@ -1,6 +1,6 @@
 import { calculateDistance } from '../utils/geoUtils';
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguageTheme } from '../context/LanguageThemeContext';
+import { applyMedicalThemeCssVars, useLanguageTheme } from '../context/LanguageThemeContext';
 import { AccountProfile } from './AccountProfile';
 import { AiInspectorBotModal } from './AiInspectorBotModal';
 import { DataSquirrelAuditModal } from './DataSquirrelAuditModal';
@@ -12,17 +12,26 @@ import {
   User, 
   FacilitySafetyChecklist,
   BranchChatMessage,
-  DisciplineBroadcast 
+  DisciplineBroadcast,
+  InspectionTemplate
 } from '../types';
 import { INITIAL_USERS } from '../data/initialData';
+import { DEFAULT_INSPECTION_FORM_TEMPLATE } from '../data/inspectionTemplates';
+import { facilityTypeLabel } from '../utils/facilityLabels';
+import { DynamicInspectionForm } from './DynamicInspectionForm';
+import { FormAnswerValue } from '../utils/inspectionScore';
+import { useInspectorHeartbeat } from '../hooks/useInspectorHeartbeat';
+import { cacheInspectorWorkspace, getCachedActiveTemplate, saveInspectionDraft } from '../offline/inspectorDb';
+import { flushInspectionSyncQueue, requestInspectionBackgroundSync } from '../offline/syncEngine';
+
+const DEFAULT_INSPECTOR_AVATAR = '/inspector-avatar.svg';
 import {
   Navigation, Camera, Target, Building2, ShieldCheck, AlertTriangle, CheckCircle2, UserCheck, Search,
   RefreshCw, Send, Sparkles, Smartphone, Wifi, WifiOff, BatteryCharging,
   QrCode, PenTool, FileCheck, Printer, Trash2, Plus, Minus, MapPin, Check, X,
-  Clock, Maximize2, Minimize2, ChevronDown, CheckSquare, Square,
+  Clock, Maximize2, Minimize2, ChevronDown, ChevronRight, CheckSquare, Square,
   Award, Zap, Mic, MicOff, History, Tag, Radio, Eye, MessageSquare,
   MessageCircle, ExternalLink, ShieldAlert, AlertCircle, Phone, ArrowUpRight,
-  ZoomIn, ZoomOut, RotateCcw, Tablet, Monitor,
   User as UserIcon, ClipboardList, Briefcase, CreditCard, FileText, Activity,
   BookOpen, Settings, Info, LogOut, Palette, Grid, ChevronLeft,
   Pin, PinOff, Users, FileSpreadsheet, Scale, Siren, PhoneCall, Download, FolderCheck, CheckCircle, HelpCircle,
@@ -141,7 +150,7 @@ const INITIAL_CHECKLIST: ChecklistItem[] = [
     'EXPORT_PDF': { id: 'EXPORT_PDF', label: 'تصدير تقرير PDF', icon: 'Printer', neonClass: 'neon-glow-purple', iconColor: 'text-violet-300', bgBox: 'bg-violet-950/40', bgFrom: 'from-violet-500', bgTo: 'to-purple-600', shadow: 'shadow-violet-500/30' },
     'EXPORT_EXCEL': { id: 'EXPORT_EXCEL', label: 'تصدير سجل Excel', icon: 'FileSpreadsheet', neonClass: 'neon-glow-emerald', iconColor: 'text-emerald-300', bgBox: 'bg-emerald-950/40', bgFrom: 'from-emerald-600', bgTo: 'to-teal-700', shadow: 'shadow-emerald-600/30' },
     'GUIDE': { id: 'GUIDE', label: 'دليل المستخدم', icon: 'BookOpen', neonClass: 'neon-glow-silver', iconColor: 'text-slate-300', bgBox: 'bg-slate-800/40', bgFrom: 'from-slate-500', bgTo: 'to-slate-600', shadow: 'shadow-slate-500/30' },
-    'SETTINGS': { id: 'SETTINGS', label: 'المظهر والعرض', icon: 'Palette', neonClass: 'neon-glow-purple', iconColor: 'text-purple-300', bgBox: 'bg-purple-950/40', bgFrom: 'from-purple-600', bgTo: 'to-indigo-700', shadow: 'shadow-purple-600/30' },
+    'SETTINGS': { id: 'SETTINGS', label: 'المظهر', icon: 'Palette', neonClass: 'neon-glow-purple', iconColor: 'text-purple-300', bgBox: 'bg-purple-950/40', bgFrom: 'from-purple-600', bgTo: 'to-indigo-700', shadow: 'shadow-purple-600/30' },
     'ABOUT': { id: 'ABOUT', label: 'حول البرنامج', icon: 'Info', neonClass: 'neon-glow-silver', iconColor: 'text-slate-300', bgBox: 'bg-slate-800/40', bgFrom: 'from-slate-600', bgTo: 'to-slate-700', shadow: 'shadow-slate-500/30' },
   };
 
@@ -160,24 +169,6 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
   onOpenFullChat,
   isStandalone = false
 }) => {
-  // Zoom & Screen Display Scale (Persistent in localStorage)
-  const [screenZoom, setScreenZoom] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('inspector_screen_zoom');
-      return saved ? Number(saved) : 100;
-    } catch {
-      return 100;
-    }
-  });
-  const [showZoomMenu, setShowZoomMenu] = useState<boolean>(false);
-
-  const handleSetZoom = (newZoom: number) => {
-    setScreenZoom(newZoom);
-    try {
-      localStorage.setItem('inspector_screen_zoom', String(newZoom));
-    } catch {}
-  };
-
   // Geo-Fencing Proximity Alert
   const [nearbyAlert, setNearbyAlert] = useState<Facility | null>(null);
 
@@ -295,21 +286,29 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
   const [inspectorLng, setInspectorLng] = useState<number>(
     targetFacility ? targetFacility.longitude + 0.00012 : 44.3512
   );
-  const { medicalTheme, setMedicalTheme, medicalThemePresets } = useLanguageTheme();
+  const { medicalTheme, setMedicalTheme, medicalThemePresets, currentThemePreset } = useLanguageTheme();
   const [checkInDone, setCheckInDone] = useState<boolean>(false);
   const [checkInTime, setCheckInTime] = useState<string>('');
   const [isCustomizingTools, setIsCustomizingTools] = useState<boolean>(false);
   const [quickActions, setQuickActions] = useState<string[]>(() => {
+    const fallback = ['INSPECT_FILES', 'TASKS_MORE', 'MY_ZONE', 'FIELD_MAP', 'REPORTS', 'SETTINGS', 'DISCIPLINE', 'ACCOUNT'];
     try {
-      const saved = localStorage.getItem('inspectorQuickActions_v3');
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem('inspectorQuickActions_v4') || localStorage.getItem('inspectorQuickActions_v3');
+      if (saved) {
+        const list = JSON.parse(saved) as string[];
+        if (Array.isArray(list) && list.length > 0) {
+          const next = list.includes('SETTINGS') ? list : [...list.slice(0, 5), 'SETTINGS', ...list.slice(5)].slice(0, 12);
+          localStorage.setItem('inspectorQuickActions_v4', JSON.stringify(next));
+          return next;
+        }
+      }
     } catch(e) {}
-    return ['INSPECT_FILES', 'TASKS_MORE', 'MY_ZONE', 'FIELD_MAP', 'REPORTS', 'VISIT_HISTORY', 'DISCIPLINE', 'ACCOUNT'];
+    return fallback;
   });
   
   const saveQuickActions = (newActions: string[]) => {
     setQuickActions(newActions);
-    localStorage.setItem('inspectorQuickActions_v3', JSON.stringify(newActions));
+    localStorage.setItem('inspectorQuickActions_v4', JSON.stringify(newActions));
   };
 
   // Detailed MORE Menu States
@@ -332,10 +331,14 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
   // Active Tab inside PWA Mobile App (with CHAT tab for field operations)
   const [homeView, setHomeView] = useState<'DASHBOARD' | 'TASKS'>('DASHBOARD');
   const [showProfilePopup, setShowProfilePopup] = useState<boolean>(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [pwaTab, setPwaTab] = useState<'MISSION' | 'CHECKLIST' | 'SCANNER' | 'PHOTOS' | 'VIOLATIONS' | 'SIGNATURE' | 'CHAT' | 'MORE' | 'ACCOUNT' | 'TASKS_MORE' | 'INSPECT_FILES' | 'PATROL_FILES' | 'MY_ZONE' | 'SERVICES' | 'GUIDE' | 'SETTINGS'>('MISSION');
 
   // Checklist State
   const [checklist, setChecklist] = useState<ChecklistItem[]>(INITIAL_CHECKLIST);
+  const [activeTemplate, setActiveTemplate] = useState<InspectionTemplate>(DEFAULT_INSPECTION_FORM_TEMPLATE);
+  const [formAnswers, setFormAnswers] = useState<Record<string, FormAnswerValue>>({});
+  const [engineScore, setEngineScore] = useState<number | null>(null);
 
   // Facility Safety Checklist State (قائمة التدقيق السريعة للسلامة والامتثال الميداني)
   const [safetyChecklist, setSafetyChecklist] = useState<FacilitySafetyChecklist>({
@@ -420,6 +423,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
   const [isUrgentMessage, setIsUrgentMessage] = useState<boolean>(false);
   const [includeGpsInMessage, setIncludeGpsInMessage] = useState<boolean>(true);
   const [chatTabFilter, setChatTabFilter] = useState<'ALL' | 'URGENT' | 'BROADCAST'>('ALL');
+  const [quickDispatchOpen, setQuickDispatchOpen] = useState(false);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -553,7 +557,85 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
     return Math.round((passedWeight / totalWeight) * 100);
   };
 
-  const currentComplianceScore = calculateComplianceScore();
+  const currentComplianceScore = engineScore ?? calculateComplianceScore();
+
+  const isHomeScreen = pwaTab === 'MISSION' && homeView === 'DASHBOARD' && !activeMoreSection;
+
+  const handleBackToPrevious = () => {
+    setShowProfilePopup(false);
+    setQuickDispatchOpen(false);
+    if (activeMoreSection) {
+      setActiveMoreSection(null);
+      setPwaTab('MORE');
+      return;
+    }
+    if (pwaTab === 'ACCOUNT' || pwaTab === 'CHAT' || pwaTab === 'SETTINGS') {
+      setPwaTab('MISSION');
+      setHomeView('DASHBOARD');
+      return;
+    }
+    if (pwaTab === 'MISSION' && homeView === 'TASKS') {
+      setHomeView('DASHBOARD');
+      return;
+    }
+    setPwaTab('MISSION');
+    setHomeView('DASHBOARD');
+    setActiveMoreSection(null);
+  };
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfilePopup(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', currentThemePreset.colors.sidebar);
+    const frame = document.getElementById('pwa-mobile-frame');
+    if (frame) {
+      frame.setAttribute('data-theme', medicalTheme);
+      applyMedicalThemeCssVars(frame, currentThemePreset);
+    }
+  }, [medicalTheme, currentThemePreset]);
+
+  useEffect(() => {
+    if (pwaTab !== 'MORE' || !activeMoreSection) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(`more-section-${activeMoreSection}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [pwaTab, activeMoreSection]);
+
+  useInspectorHeartbeat(currentUser, inspectorLat, inspectorLng, true);
+
+  useEffect(() => {
+    const syncNet = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', syncNet);
+    window.addEventListener('offline', () => setIsOnline(false));
+    fetch('/api/templates/active')
+      .then((r) => r.json())
+      .then((tpl: InspectionTemplate) => {
+        if (tpl?.schemaJson) setActiveTemplate(tpl);
+      })
+      .catch(async () => {
+        const cached = await getCachedActiveTemplate();
+        if (cached) setActiveTemplate(cached);
+      });
+    cacheInspectorWorkspace({
+      assignments,
+      facilities,
+      templates: [activeTemplate]
+    }).catch(() => undefined);
+    return () => {
+      window.removeEventListener('online', syncNet);
+    };
+  }, []);
 
       // Handlers
   const handleCheckIn = () => {
@@ -807,12 +889,16 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
   };
 
   const handleSyncOfflineQueue = async () => {
-    if (offlineQueue.length === 0) return;
+    if (offlineQueue.length === 0) {
+      await flushInspectionSyncQueue();
+      return;
+    }
     for (const report of offlineQueue) {
       await onSubmitReport(report);
     }
     setOfflineQueue([]);
     localStorage.removeItem('pwa_inspection_queue');
+    await flushInspectionSyncQueue();
     alert('تمت مزامنة كافة التقارير المحفوظة أوفلاين مع السيرفر الرئيسي بنجاح!');
   };
 
@@ -830,6 +916,8 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
       checkInTime,
       generalComplianceScore: currentComplianceScore,
       checklist,
+      answersJson: formAnswers,
+      templateId: activeTemplate.id,
       safetyChecklist,
       checkedNurseIds: checkedNurses.map(n => n.id),
       violations,
@@ -842,10 +930,26 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
     };
 
     if (!isOnline) {
-      // Queue offline
       const updatedQueue = [...offlineQueue, reportPayload];
       setOfflineQueue(updatedQueue);
       localStorage.setItem('pwa_inspection_queue', JSON.stringify(updatedQueue));
+      saveInspectionDraft({
+        id: `draft_${Date.now()}`,
+        assignmentId: selectedAssignment.id,
+        inspectorId: currentUser.id,
+        inspectorName: currentUser.name,
+        facilityId: targetFacility.id,
+        facilityName: targetFacility.name,
+        templateId: activeTemplate.id,
+        answersJson: formAnswers,
+        photos,
+        notes: generalNotes,
+        complianceScore: currentComplianceScore,
+        inspectorLat,
+        inspectorLng,
+        createdAt: new Date().toISOString(),
+        syncStatus: 'QUEUED'
+      }).then(() => requestInspectionBackgroundSync()).catch(() => undefined);
       setIsSubmitting(false);
       setCompletedToday(prev => prev + 1);
       setSubmittedResult({
@@ -909,96 +1013,101 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
     }
   };
 
-  const handleToolClick = (toolId: string) => {
-    if (toolId === 'INSPECT_FILES') {
-      setPwaTab('CHECKLIST');
-    } else if (toolId === 'TASKS_MORE') {
-      setHomeView('TASKS');
-    } else if (toolId === 'MY_ZONE') {
-      setPwaTab('MORE');
-      setActiveMoreSection('MY_ZONE');
-    } else if (toolId === 'FIELD_MAP') {
-      setHomeView('TASKS');
-    } else if (toolId === 'REPORTS') {
-      window.print();
-    } else if (toolId === 'VISIT_HISTORY') {
-      setShowHistoryModal(true);
-    } else if (toolId === 'DISCIPLINE') {
-      setPwaTab('MORE');
-      setActiveMoreSection('DISCIPLINE');
-    } else if (['CHECKLIST', 'SCANNER', 'PHOTOS', 'VIOLATIONS', 'SIGNATURE', 'CHAT', 'ACCOUNT'].includes(toolId)) {
-      setPwaTab(toolId as any);
-    } else if (toolId === 'SYNC') {
-      handleSyncOfflineQueue();
-    } else if (toolId === 'EXPORT_PDF') {
-      window.print();
-    } else if (toolId === 'EXPORT_EXCEL') {
-      handleExportExcel();
-    } else if (toolId === 'EMERGENCY') {
-      handleTriggerEmergencySOS();
-    } else {
-      setPwaTab('MORE');
-      setActiveMoreSection(toolId);
+  const openMoreSection = (sectionId: string) => {
+    setHomeView('DASHBOARD');
+    setPwaTab('MORE');
+    setActiveMoreSection(sectionId);
+  };
+
+  const moreDetailsProps = (sectionId: string) => ({
+    id: `more-section-${sectionId}`,
+    open: activeMoreSection === sectionId || (sectionId === 'SETTINGS' && !activeMoreSection),
+    onToggle: (event: React.SyntheticEvent<HTMLDetailsElement>) => {
+      const isOpen = event.currentTarget.open;
+      if (isOpen) {
+        setActiveMoreSection(sectionId);
+        return;
+      }
+      if (activeMoreSection === sectionId) setActiveMoreSection(null);
     }
+  });
+
+  const handleToolClick = (toolId: string) => {
+    if (toolId === 'ACCOUNT') {
+      setActiveMoreSection(null);
+      setPwaTab('ACCOUNT');
+      return;
+    }
+    if (toolId === 'SETTINGS') {
+      setActiveMoreSection(null);
+      setPwaTab('SETTINGS');
+      return;
+    }
+    if (toolId === 'TASKS_MORE') {
+      setActiveMoreSection(null);
+      setPwaTab('MISSION');
+      setHomeView('TASKS');
+      return;
+    }
+    if (toolId === 'FIELD_MAP') {
+      setActiveMoreSection(null);
+      setPwaTab('MISSION');
+      setHomeView('TASKS');
+      return;
+    }
+    if (['CHECKLIST', 'SCANNER', 'PHOTOS', 'VIOLATIONS', 'SIGNATURE', 'CHAT'].includes(toolId)) {
+      setActiveMoreSection(null);
+      setPwaTab(toolId as typeof pwaTab);
+      return;
+    }
+    if (toolId === 'COMMUNICATIONS') {
+      setActiveMoreSection(null);
+      setPwaTab('CHAT');
+      return;
+    }
+    if (toolId === 'VISIT_HISTORY') {
+      openMoreSection('PATROL_FILES');
+      return;
+    }
+    if (toolId === 'SYNC') {
+      handleSyncOfflineQueue();
+      return;
+    }
+    if (toolId === 'EXPORT_PDF') {
+      openMoreSection('REPORTS');
+      return;
+    }
+    if (toolId === 'EXPORT_EXCEL') {
+      handleExportExcel();
+      return;
+    }
+    if (toolId === 'EMERGENCY') {
+      handleTriggerEmergencySOS();
+      return;
+    }
+    openMoreSection(toolId);
   };
 
   return (
     <>
-    <div className="w-full min-h-screen bg-gradient-to-br from-[#060e1a] via-[#08162b] to-[#040a14] text-slate-100 flex justify-center selection:bg-emerald-500 selection:text-white relative overflow-hidden" id="field-inspector-pwa-container">
-      {/* Ambient Glass Glow Orbs */}
-      <div className="absolute top-10 left-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      
-      {/* Mobile Shell: Full width on mobile phones, max-w-md centered on desktop */}
+    <div className="w-full min-h-screen bg-[#0b1220] text-slate-100 flex justify-center selection:bg-[var(--theme-primary)] selection:text-white relative overflow-hidden" id="field-inspector-pwa-container">
       <div 
-        className={`w-full max-w-md ${isStandalone ? 'h-[100dvh] max-h-[100dvh]' : 'h-[860px] max-h-[88vh]'} bg-[#0a1526]/85 backdrop-blur-2xl border-x border-white/10 shadow-[0_25px_70px_rgba(0,0,0,0.85)] flex flex-col relative overflow-hidden transition-all duration-200`}
-        style={{ zoom: `${screenZoom}%` }}
+        id="pwa-mobile-frame"
+        data-theme={medicalTheme}
+        className={`w-full max-w-md ${isStandalone ? 'h-[100dvh] max-h-[100dvh]' : 'h-[860px] max-h-[88vh]'} border-x shadow-[0_18px_40px_rgba(15,23,42,0.12)] flex flex-col relative overflow-hidden transition-colors duration-200`}
+        style={{ background: currentThemePreset.colors.canvas, borderColor: currentThemePreset.colors.border, color: currentThemePreset.colors.text }}
       >
         
-        {/* Top Header: Official Syndicate Mobile Brand - Glass Prestige */}
-        <header className="bg-[#0a1628]/85 backdrop-blur-2xl text-white px-3.5 py-2.5 shadow-lg shrink-0 z-30 flex items-center justify-between border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="شعار نقابة التمريض" className="w-10 h-10 object-contain drop-shadow-md rounded-full bg-white/10 p-0.5 border border-white/20" />
-            <div>
-              <h1 className="text-xs font-black text-white tracking-wide">نقابة التمريض</h1>
-              <p className="text-[10px] text-amber-300 font-bold">المفتش الميداني والرقابة الصحية</p>
+        <header className="text-white px-3.5 py-2.5 shadow-md shrink-0 z-40 flex items-center justify-between border-b" style={{ background: currentThemePreset.colors.sidebar, borderColor: currentThemePreset.colors.sidebarBorder }}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo.png" alt="شعار نقابة التمريض" className="w-10 h-10 object-contain drop-shadow-md rounded-full bg-white p-0.5 border border-emerald-200 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xs font-black text-white tracking-wide truncate">نقابة التمريض</h1>
+              <p className="text-[10px] font-bold truncate" style={{ color: 'var(--theme-accent)' }}>المفتش الميداني والرقابة الصحية</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Screen Zoom Control */}
-            <div className="relative">
-              <button
-                onClick={() => setShowZoomMenu(!showZoomMenu)}
-                className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-amber-300 transition cursor-pointer flex items-center gap-1 shadow-xs"
-                title="تخصيص حجم العرض"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-mono font-bold">{screenZoom}%</span>
-              </button>
-
-              {showZoomMenu && (
-                <div className="absolute top-full left-0 mt-2 bg-slate-900/95 backdrop-blur-2xl border border-white/15 shadow-2xl rounded-2xl p-2 z-50 flex flex-col gap-1 w-38 animate-in fade-in zoom-in-95">
-                  <span className="text-[10px] font-bold text-slate-400 px-2 py-1 border-b border-slate-800">حجم الشاشة</span>
-                  {[35, 45, 55, 65, 75, 85, 100, 115, 125].map(z => (
-                    <button
-                      key={z}
-                      onClick={() => {
-                        handleSetZoom(z);
-                        setShowZoomMenu(false);
-                      }}
-                      className={`text-xs px-2.5 py-1.5 rounded-xl text-right flex items-center justify-between font-bold transition cursor-pointer ${
-                        screenZoom === z ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <span>{z === 100 ? 'الافتراضي 100%' : `${z}%`}</span>
-                      {screenZoom === z && <Check className="w-3 h-3" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Online / Offline Toggle */}
             <button
               id="pwa-toggle-online"
@@ -1026,37 +1135,105 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
               </button>
             )}
 
-            {/* Inspector Rounded Portrait Avatar (from reference design) */}
-            <button
-              onClick={() => setShowProfilePopup(true)}
-              className="relative group transition active:scale-95 cursor-pointer"
-              title="الملف التعريفي للمفتش"
-            >
-              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-amber-400/60 shadow-[0_0_10px_rgba(245,158,11,0.25)] bg-slate-800 flex items-center justify-center">
-                {currentUser.avatar ? (
-                  <img src={currentUser.avatar} alt="صورة المفتش" className="w-full h-full object-cover" />
-                ) : (
-                  <img 
-                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" 
-                    alt="صورة المفتش" 
-                    className="w-full h-full object-cover" 
-                  />
-                )}
-              </div>
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-slate-900 shadow-xs"></span>
-            </button>
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowProfilePopup((open) => !open)}
+                className="relative group transition active:scale-95 cursor-pointer"
+                title="قائمة حساب المفتش"
+              >
+                <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-amber-300 bg-white flex items-center justify-center">
+                  <img src={currentUser.avatar || DEFAULT_INSPECTOR_AVATAR} alt="صورة المفتش" className="w-full h-full object-cover" />
+                </div>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-emerald-800 shadow-xs"></span>
+              </button>
+              {showProfilePopup && (
+                <div
+                  id="pwa-account-dropdown"
+                  className="absolute top-full left-0 mt-2 w-[270px] bg-white text-slate-900 rounded-2xl border border-emerald-200 shadow-2xl z-[80] overflow-hidden"
+                >
+                  <div className="bg-emerald-800 text-white p-3 flex items-center gap-2.5">
+                    <img src={currentUser.avatar || DEFAULT_INSPECTOR_AVATAR} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-amber-300 bg-white" />
+                    <div className="min-w-0 text-right">
+                      <p className="text-[12px] font-black truncate">{currentUser.name}</p>
+                      <p className="text-[10px] text-amber-200 font-bold truncate">{currentUser.roleTitle || 'مفتش ميداني معتمد'}</p>
+                    </div>
+                  </div>
+                  <div className="p-2.5 space-y-1.5 text-[11px]">
+                    <div className="flex justify-between gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-2.5 py-1.5">
+                      <span className="text-slate-600 font-bold">الرقم النقابي</span>
+                      <strong className="text-slate-900 font-mono">{currentUser.badgeNumber || '—'}</strong>
+                    </div>
+                    <div className="flex justify-between gap-2 bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5">
+                      <span className="text-slate-600 font-bold">الهاتف</span>
+                      <strong className="text-slate-900">{currentUser.phone || '—'}</strong>
+                    </div>
+                    <div className="flex justify-between gap-2 bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5">
+                      <span className="text-slate-600 font-bold">المحافظة</span>
+                      <strong className="text-slate-900 truncate">{currentUser.provinceName || currentUser.governorate || 'بغداد'}</strong>
+                    </div>
+                    <div className="flex justify-between gap-2 bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5">
+                      <span className="text-slate-600 font-bold">الزون</span>
+                      <strong className="text-slate-900 truncate">{currentUser.assignedZoneName || 'غير محدد'}</strong>
+                    </div>
+                    {currentUser.specialization && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5">
+                        <span className="text-slate-600 font-bold block">التخصص</span>
+                        <strong className="text-slate-900">{currentUser.specialization}</strong>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfilePopup(false);
+                        setPwaTab('ACCOUNT');
+                      }}
+                      className="w-full text-right bg-emerald-700 text-white font-black rounded-xl px-3 py-2 mt-1"
+                    >
+                      تفاصيل الحساب الكاملة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('هل أنت متأكد من تسجيل الخروج من النظام؟')) {
+                          localStorage.clear();
+                          localStorage.setItem('isLoggedOut', 'true');
+                          window.location.href = '/';
+                        }
+                      }}
+                      className="w-full text-right bg-rose-50 text-rose-700 border border-rose-200 font-black rounded-xl px-3 py-2 flex items-center justify-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      تسجيل الخروج
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Secondary Info Strip: Inspector Identity & Zone (Matching Reference Image) */}
-        <div className="bg-[#081326]/90 backdrop-blur-md text-slate-200 px-3.5 py-2 text-[11px] flex items-center justify-between border-b border-white/10 shadow-sm shrink-0">
-          <div className="flex items-center gap-1.5 truncate">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-slate-300 font-medium">المفتش الميداني:</span>
-            <span className="font-extrabold text-white truncate">{currentUser.name || 'سجاد كاظم'}</span>
+        <div id="pwa-inspector-identity-strip" className="px-3.5 py-2 text-[11px] flex items-center justify-between gap-2 border-b shadow-sm shrink-0" style={{ background: currentThemePreset.colors.card, color: currentThemePreset.colors.text, borderColor: currentThemePreset.colors.primary }}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {!isHomeScreen && (
+              <button
+                type="button"
+                id="pwa-back-btn"
+                onClick={handleBackToPrevious}
+                className="shrink-0 font-black text-[11px] px-2.5 py-1.5 rounded-xl flex items-center gap-1"
+                style={{ background: currentThemePreset.colors.primary, color: currentThemePreset.colors.onPrimary }}
+                title="العودة للقائمة السابقة"
+              >
+                <ChevronRight className="w-4 h-4" />
+                <span>رجوع</span>
+              </button>
+            )}
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--theme-primary)' }} />
+            <span className="font-extrabold truncate">{currentUser.name || 'سجاد كاظم'}</span>
           </div>
-          <div className="flex items-center gap-1 shrink-0 text-[10px] bg-emerald-950/60 backdrop-blur-md px-2.5 py-0.5 rounded-full text-emerald-300 font-bold border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400 inline" />
+          <div className="flex items-center gap-1 shrink-0 text-[10px] px-2.5 py-0.5 rounded-full font-bold border" style={{ background: 'color-mix(in srgb, var(--theme-primary) 22%, var(--theme-card-bg))', color: 'var(--theme-primary)', borderColor: 'var(--theme-primary)' }}>
+            <CheckCircle2 className="w-3 h-3 inline" style={{ color: 'var(--theme-primary)' }} />
             <span>مفتش معتمد</span>
           </div>
         </div>
@@ -1070,7 +1247,14 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                 {homeView === 'DASHBOARD' ? (
                   <>
                     {/* Dashboard Stats Card - Glass Prestige with Cyber Radar Circles */}
-                    <div className="bg-[#0e1b38]/85 backdrop-blur-2xl border border-sky-500/25 p-4 rounded-3xl shadow-2xl relative overflow-hidden ring-1 ring-white/10">
+                    <div
+                      className="border p-4 rounded-3xl shadow-sm relative overflow-hidden"
+                      style={{
+                        background: 'var(--theme-panel-bg)',
+                        borderColor: 'var(--theme-panel-border)',
+                        color: 'var(--theme-panel-text)'
+                      }}
+                    >
                       {/* Concentric Cyber Radar Motif */}
                       <svg className="absolute -left-6 -top-6 w-36 h-36 text-sky-400/10 pointer-events-none" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" />
@@ -1081,12 +1265,12 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       </svg>
                       
                       <div className="text-right mb-1 relative z-10">
-                        <p className="text-[11px] text-slate-300 font-bold mb-0.5">نطاق التفتيش والتكليف:</p>
-                        <p className="text-sm font-black text-white">{currentUser.governorate ? `محافظة ${currentUser.governorate}` : 'عموم المحافظات والزونات'}</p>
+                        <p className="text-[11px] font-bold mb-0.5" style={{ color: 'var(--theme-text-muted)' }}>نطاق التفتيش والتكليف:</p>
+                        <p className="text-sm font-black" style={{ color: 'var(--theme-text-primary)' }}>{currentUser.governorate ? `محافظة ${currentUser.governorate}` : 'عموم المحافظات والزونات'}</p>
                       </div>
                       
                       <div className="text-right mb-3 relative z-10">
-                        <p className="text-xs font-black text-slate-200">مهام اليوم الميدانية:</p>
+                        <p className="text-xs font-black" style={{ color: 'var(--theme-text-primary)' }}>مهام اليوم الميدانية:</p>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2.5 relative z-10">
@@ -1132,12 +1316,19 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* Grid of Tools - Glass Prestige with Glowing Neon Frames */}
-                    <div className="bg-[#0b162c]/85 backdrop-blur-2xl border border-white/10 p-4 rounded-3xl shadow-2xl ring-1 ring-white/5 space-y-4">
+                    <div
+                      className="backdrop-blur-2xl border p-4 rounded-3xl shadow-2xl ring-1 ring-white/5 space-y-4"
+                      style={{
+                        background: 'var(--theme-panel-bg)',
+                        borderColor: 'var(--theme-panel-border)',
+                        color: 'var(--theme-panel-text)'
+                      }}
+                    >
                       <div className="flex items-center justify-between">
-                        <button onClick={() => setIsCustomizingTools(true)} className="bg-slate-800/80 hover:bg-slate-700/80 p-2 rounded-full border border-white/15 transition-colors shadow-sm cursor-pointer" title="تخصيص الأدوات">
-                           <Settings className="w-4 h-4 text-slate-300 hover:text-white" />
+                        <button onClick={() => setIsCustomizingTools(true)} className="p-2 rounded-full border transition-colors shadow-sm cursor-pointer" style={{ background: 'color-mix(in srgb, var(--theme-primary) 22%, var(--theme-panel-bg))', borderColor: 'var(--theme-panel-border)' }} title="تخصيص الأدوات">
+                           <Settings className="w-4 h-4" style={{ color: 'var(--theme-panel-text)' }} />
                         </button>
-                        <p className="text-xs font-black text-white text-right">أدوات المفتش الميداني السريعة:</p>
+                        <p className="text-xs font-black text-right" style={{ color: 'var(--theme-panel-text)' }}>أدوات المفتش الميداني السريعة:</p>
                       </div>
                       
                       <div className="grid grid-cols-3 gap-3">
@@ -1153,7 +1344,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                               <div className={`w-16 h-16 rounded-2xl ${tool.bgBox || 'bg-slate-900/60'} ${tool.neonClass || 'neon-glow-cyan'} flex items-center justify-center transition-all group-hover:scale-105`}>
                                 {getToolIcon(tool.icon, `w-7 h-7 ${tool.iconColor || 'text-cyan-300'}`)}
                               </div>
-                              <span className="text-[11px] font-bold text-slate-200 text-center group-hover:text-white transition-colors leading-tight line-clamp-1">{tool.label}</span>
+                              <span className="text-[11px] font-bold text-center group-hover:opacity-90 transition-colors leading-tight line-clamp-1" style={{ color: 'var(--theme-panel-text)' }}>{tool.label}</span>
                             </button>
                           );
                         })}
@@ -1171,7 +1362,8 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
                         <button
                           onClick={() => setShowUnregModal(true)}
-                          className="bg-[#122244]/85 hover:bg-[#182f5e] border border-sky-500/30 text-sky-200 py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs shadow-lg transition active:scale-95 cursor-pointer"
+                          className="py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs shadow-lg transition active:scale-95 cursor-pointer border"
+                          style={{ background: 'color-mix(in srgb, var(--theme-primary) 28%, var(--theme-panel-bg))', borderColor: 'var(--theme-panel-border)', color: 'var(--theme-panel-text)' }}
                         >
                           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                           <span className="truncate">رصد عيادة غير مسجلة</span>
@@ -1179,7 +1371,8 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
 
                         <button
                           onClick={() => setPwaTab('CHAT')}
-                          className="bg-[#0f1d38]/85 hover:bg-[#162a52] border border-sky-500/20 text-white py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs shadow-lg transition active:scale-95 cursor-pointer"
+                          className="py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs shadow-lg transition active:scale-95 cursor-pointer border"
+                          style={{ background: 'color-mix(in srgb, var(--theme-accent) 22%, var(--theme-panel-bg))', borderColor: 'var(--theme-panel-border)', color: 'var(--theme-panel-text)' }}
                         >
                           <span className="bg-red-600 text-white px-1.5 py-0.5 rounded-full text-[8px] font-black animate-pulse">مباشر</span>
                           <span className="truncate">شات غرفة العمليات</span>
@@ -1253,7 +1446,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                              </div>
                              <div>
                                <h3 className="font-extrabold text-white text-xs">{targetFacility.name}</h3>
-                               <p className="text-[10px] text-slate-300 font-medium">{targetFacility.type === 'CLINIC' ? 'عيادة تمريضية' : targetFacility.type}</p>
+                               <p className="text-[10px] text-slate-300 font-medium">{facilityTypeLabel(targetFacility.type)}</p>
                              </div>
                            </div>
                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full text-[10px] font-black shadow-sm">
@@ -1262,7 +1455,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                         </div>
                         
                         {/* Map Preview Placeholder */}
-                        <div className="w-full h-32 bg-slate-900/90 rounded-xl border border-white/15 overflow-hidden relative mb-3 shadow-inner">
+                        <div id="field-map-panel" className="w-full h-32 bg-slate-900/90 rounded-xl border border-white/15 overflow-hidden relative mb-3 shadow-inner">
                            {/* DUAL GPS VALIDATION UI */}
                            <div className="absolute top-2 right-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-lg border border-white/15 flex flex-col gap-1 z-10">
                               <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-200">
@@ -1510,62 +1703,40 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                   </div>
 
                   <div className="space-y-2.5">
-                    {checklist.map((item) => (
-                      <div key={item.id} className="bg-slate-900/70 backdrop-blur-xl p-3.5 rounded-2xl border border-white/10 shadow-lg ring-1 ring-white/5 space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-extrabold text-white text-xs leading-snug">{item.title}</p>
-                          <span className="text-[9px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded-md font-mono font-bold shrink-0 border border-white/10">
-                            {item.weight} pts
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-1">
-                          <button
-                            id={`pwa-checklist-pass-${item.id}`}
-                            onClick={() => {
-                              setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, status: 'PASS' } : c));
-                            }}
-                            className={`flex-1 py-1.5 rounded-xl text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                              item.status === 'PASS'
-                                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                                : 'bg-slate-900/80 backdrop-blur-md text-slate-200 hover:text-white border border-white/15'
-                            }`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>مطابق</span>
-                          </button>
-
-                          <button
-                            id={`pwa-checklist-fail-${item.id}`}
-                            onClick={() => {
-                              setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, status: 'FAIL' } : c));
-                            }}
-                            className={`flex-1 py-1.5 rounded-xl text-[10px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                              item.status === 'FAIL'
-                                ? 'bg-rose-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.3)]'
-                                : 'bg-slate-900/80 backdrop-blur-md text-slate-200 hover:text-white border border-white/15'
-                            }`}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>مخالف</span>
-                          </button>
-
-                          <button
-                            id={`pwa-checklist-na-${item.id}`}
-                            onClick={() => {
-                              setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, status: 'NA' } : c));
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition cursor-pointer ${
-                              item.status === 'NA'
-                                ? 'bg-slate-700 text-white shadow'
-                                : 'bg-slate-900/80 text-slate-400 border border-white/10'
-                            }`}
-                          >
-                            N/A
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    <DynamicInspectionForm
+                      template={activeTemplate}
+                      answers={formAnswers}
+                      onChange={(next, score) => {
+                        setFormAnswers(next);
+                        setEngineScore(score);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!targetFacility) return;
+                        saveInspectionDraft({
+                          id: `draft_${Date.now()}`,
+                          assignmentId: selectedAssignment?.id,
+                          inspectorId: currentUser.id,
+                          inspectorName: currentUser.name,
+                          facilityId: targetFacility.id,
+                          facilityName: targetFacility.name,
+                          templateId: activeTemplate.id,
+                          answersJson: formAnswers,
+                          photos,
+                          notes: generalNotes,
+                          complianceScore: currentComplianceScore,
+                          inspectorLat,
+                          inspectorLng,
+                          createdAt: new Date().toISOString(),
+                          syncStatus: 'DRAFT'
+                        }).then(() => alert('حُفظت مسودة الكشف محلياً (IndexedDB).')).catch(() => undefined);
+                      }}
+                      className="w-full py-2 rounded-xl bg-slate-800 border border-amber-400/40 text-amber-200 text-[11px] font-black"
+                    >
+                      حفظ مسودة أوفلاين
+                    </button>
                   </div>
 
                   {/* FEATURE 4: VOICE-TO-TEXT & QUICK TAGS IN CHECKLIST */}
@@ -2064,123 +2235,95 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
 
               {/* TAB 7: OPERATIONS CHAT & DIRECT DISPATCH (غرفة العمليات وشات المفتش) */}
               {pwaTab === 'CHAT' && (
-                <div className="space-y-3 animate-in fade-in flex flex-col h-full min-h-[440px]" id="pwa-chat-tab-panel">
-                  {/* Chat Room Top Status */}
-                  <div className="bg-slate-900/70 backdrop-blur-xl p-3 rounded-2xl border border-white/10 space-y-2.5 shadow-xl ring-1 ring-white/5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-                          <Radio className="w-4 h-4 animate-pulse" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-xs text-white flex items-center gap-1.5">
-                            <span>غرفة العمليات والتواصل الميداني</span>
-                            <span className="bg-emerald-500/20 text-emerald-300 text-[8px] font-black px-1.5 py-0.5 rounded-full border border-emerald-500/40">
-                              مباشر
-                            </span>
-                          </h4>
-                          <p className="text-[10px] text-slate-300 font-medium">اتصال راديوي مشفر مع القيادة العامة والفروع</p>
-                        </div>
+                <div className="space-y-3 animate-in fade-in flex flex-col min-h-[480px]" id="pwa-chat-tab-panel">
+                  <div className="bg-white p-3 rounded-2xl border border-emerald-200 space-y-2.5 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-xl border border-emerald-200">
+                        <Radio className="w-4 h-4" />
                       </div>
-                      {onOpenFullChat && (
-                        <button
-                          type="button"
-                          onClick={onOpenFullChat}
-                          className="bg-slate-800/90 hover:bg-slate-700 backdrop-blur-md text-amber-300 p-2 rounded-xl text-[10px] font-black flex items-center gap-1 border border-white/10 transition cursor-pointer shadow-sm active:scale-95"
-                          title="الانتقال للشاشة الموسعة"
-                        >
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">الشاشة الكاملة</span>
-                        </button>
-                      )}
+                      <div className="min-w-0">
+                        <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
+                          <span>غرفة العمليات والتواصل الميداني</span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
+                            مباشر
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-slate-600 font-medium">اتصال مع القيادة العامة والفروع</p>
+                      </div>
                     </div>
 
-                    {/* Filter Chips */}
-                    <div className="flex items-center gap-1.5 text-[10px] pt-1.5 border-t border-white/10">
-                      <span className="text-slate-300 font-bold">التصفية:</span>
+                    <div className="flex items-center gap-1.5 text-[10px] pt-1.5 border-t border-emerald-100 overflow-x-auto">
                       <button
                         type="button"
                         onClick={() => setChatTabFilter('ALL')}
-                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                          chatTabFilter === 'ALL' ? 'bg-amber-500 text-slate-950 font-black shadow-md' : 'bg-slate-800/80 backdrop-blur-md text-slate-300 hover:bg-slate-700/80 border border-white/10'
+                        className={`px-2.5 py-1 rounded-lg font-bold shrink-0 ${
+                          chatTabFilter === 'ALL' ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
-                        كافة الرسائل ({chatMessages.length})
+                        الكل ({chatMessages.length})
                       </button>
                       <button
                         type="button"
                         onClick={() => setChatTabFilter('URGENT')}
-                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
-                          chatTabFilter === 'URGENT' ? 'bg-red-500 text-white font-black shadow-md' : 'bg-slate-800/80 backdrop-blur-md text-slate-300 hover:bg-slate-700/80 border border-white/10'
+                        className={`px-2.5 py-1 rounded-lg font-bold shrink-0 ${
+                          chatTabFilter === 'URGENT' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
-                        <AlertCircle className="w-3 h-3 text-red-400" />
-                        <span>النداءات العاجلة</span>
+                        العاجلة
                       </button>
                       <button
                         type="button"
                         onClick={() => setChatTabFilter('BROADCAST')}
-                        className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                          chatTabFilter === 'BROADCAST' ? 'bg-blue-600 text-white font-black shadow-md' : 'bg-slate-800/80 backdrop-blur-md text-slate-300 hover:bg-slate-700/80 border border-white/10'
+                        className={`px-2.5 py-1 rounded-lg font-bold shrink-0 ${
+                          chatTabFilter === 'BROADCAST' ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
-                        التعميمات المركزية
+                        التعميمات
                       </button>
                     </div>
                   </div>
 
-                  {/* QUICK DISPATCH BUTTONS FOR FIELD INSPECTOR */}
-                  <div className="bg-slate-900/70 backdrop-blur-xl p-3 rounded-2xl border border-white/10 space-y-2 shadow-xl ring-1 ring-white/5">
-                    <span className="text-[11px] font-black text-amber-300 block flex items-center gap-1">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" />
-                      برقيات ونداءات المفتش الميداني السريعة:
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleQuickDispatch('SOS')}
-                        className="bg-red-950/80 hover:bg-red-900/90 backdrop-blur-md border border-red-500/50 text-red-200 p-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition text-right shadow-sm active:scale-95"
-                      >
-                        <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 animate-pulse" />
-                        <span className="truncate">🚨 طلب دعم أمني فوري</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQuickDispatch('ARRIVED')}
-                        className="bg-emerald-950/80 hover:bg-emerald-900/90 backdrop-blur-md border border-emerald-500/50 text-emerald-200 p-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition text-right shadow-sm active:scale-95"
-                      >
-                        <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span className="truncate">📍 إشعار وصول للموقع</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQuickDispatch('LEGAL')}
-                        className="bg-blue-950/80 hover:bg-blue-900/90 backdrop-blur-md border border-blue-500/50 text-blue-200 p-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition text-right shadow-sm active:scale-95"
-                      >
-                        <FileCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span className="truncate">⚖️ استفسار نقابي قانوني</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleQuickDispatch('OBSTRUCTION')}
-                        className="bg-amber-950/80 hover:bg-amber-900/90 backdrop-blur-md border border-amber-500/50 text-amber-200 p-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition text-right shadow-sm active:scale-95"
-                      >
-                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span className="truncate">⚠️ رصد ممانعة تفتيش</span>
-                      </button>
-                    </div>
+                  <div className="relative z-20">
+                    <button
+                      type="button"
+                      id="pwa-quick-dispatch-toggle"
+                      onClick={() => setQuickDispatchOpen((open) => !open)}
+                      className="w-full bg-white border border-amber-300 text-slate-900 p-3 rounded-2xl text-[11px] font-black flex items-center justify-between shadow-sm"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-600" />
+                        برقيات ونداءات المفتش الميداني السريعة
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-slate-700 transition ${quickDispatchOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {quickDispatchOpen && (
+                      <div className="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+                        <button type="button" onClick={() => { handleQuickDispatch('SOS'); setQuickDispatchOpen(false); }} className="w-full text-right px-3 py-2.5 text-[12px] font-bold text-rose-800 hover:bg-rose-50 flex items-center gap-2 border-b border-slate-100">
+                          <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                          طلب دعم أمني فوري
+                        </button>
+                        <button type="button" onClick={() => { handleQuickDispatch('ARRIVED'); setQuickDispatchOpen(false); }} className="w-full text-right px-3 py-2.5 text-[12px] font-bold text-emerald-800 hover:bg-emerald-50 flex items-center gap-2 border-b border-slate-100">
+                          <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                          إشعار وصول للموقع
+                        </button>
+                        <button type="button" onClick={() => { handleQuickDispatch('LEGAL'); setQuickDispatchOpen(false); }} className="w-full text-right px-3 py-2.5 text-[12px] font-bold text-sky-800 hover:bg-sky-50 flex items-center gap-2 border-b border-slate-100">
+                          <FileCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                          استفسار نقابي قانوني
+                        </button>
+                        <button type="button" onClick={() => { handleQuickDispatch('OBSTRUCTION'); setQuickDispatchOpen(false); }} className="w-full text-right px-3 py-2.5 text-[12px] font-bold text-amber-800 hover:bg-amber-50 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          رصد ممانعة تفتيش
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* CHAT MESSAGES STREAM */}
-                  <div className="bg-slate-900/60 backdrop-blur-xl p-3 rounded-2xl border border-white/10 flex-1 overflow-y-auto max-h-[230px] space-y-2.5 shadow-inner">
+                  <div className="bg-white p-3 rounded-2xl border border-emerald-200 flex-1 overflow-y-auto min-h-[260px] max-h-[360px] space-y-2.5">
                     {chatMessages.length === 0 ? (
-                      <div className="text-center py-8 text-slate-300 text-xs">
-                        <Radio className="w-6 h-6 mx-auto mb-1 text-slate-400" />
-                        <p className="font-bold">لا توجد رسائل في الغرفة حالياً.</p>
-                        <p className="text-[10px] text-slate-400">أرسل نداءك أو استفسارك الميداني الآن.</p>
+                      <div className="text-center py-10 text-slate-600 text-xs">
+                        <Radio className="w-6 h-6 mx-auto mb-1 text-emerald-700" />
+                        <p className="font-black text-slate-900">لا توجد رسائل في الغرفة حالياً.</p>
+                        <p className="text-[11px] text-slate-600 mt-1">أرسل نداءك أو استفسارك الميداني الآن.</p>
                       </div>
                     ) : (
                       chatMessages
@@ -2195,43 +2338,40 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                           const isBroadcast = msg.type === 'CENTRAL_BROADCAST' || msg.isNationwideBroadcast;
 
                           return (
-                            <div 
+                            <div
                               key={msg.id || idx}
-                              className={`p-3 rounded-2xl text-xs space-y-1.5 transition ${
+                              className={`p-3 rounded-2xl text-xs space-y-1.5 ${
                                 isUrgent
-                                  ? 'bg-rose-950/85 backdrop-blur-md border-2 border-rose-500 text-rose-100 shadow-md'
+                                  ? 'bg-rose-50 border border-rose-300'
                                   : isBroadcast
-                                  ? 'bg-amber-950/80 backdrop-blur-md border border-amber-500/60 text-amber-100 shadow-sm'
+                                  ? 'bg-amber-50 border border-amber-300'
                                   : isMe
-                                  ? 'bg-emerald-950/70 backdrop-blur-md border border-emerald-600/50 text-emerald-100 mr-3 shadow-sm'
-                                  : 'bg-slate-900/80 backdrop-blur-md border border-white/15 text-slate-100 ml-3 shadow-sm'
+                                  ? 'bg-emerald-50 border border-emerald-300 mr-4'
+                                  : 'bg-slate-50 border border-slate-200 ml-4'
                               }`}
                             >
-                              <div className="flex items-center justify-between text-[10px]">
-                                <div className="flex items-center gap-1.5 font-bold">
-                                  {isUrgent && <AlertCircle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />}
-                                  {isBroadcast && <Radio className="w-3.5 h-3.5 text-amber-400" />}
-                                  <span className={isMe ? 'text-emerald-300 font-extrabold' : isBroadcast ? 'text-amber-300 font-extrabold' : 'text-white font-extrabold'}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className={`text-[11px] font-black leading-snug ${
+                                    isUrgent ? 'text-rose-800' : isBroadcast ? 'text-amber-900' : isMe ? 'text-emerald-900' : 'text-slate-900'
+                                  }`}>
                                     {isMe ? 'أنا (المفتش الميداني)' : msg.senderName}
-                                  </span>
+                                  </p>
                                   {msg.senderRoleTitle && (
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 font-normal border border-white/5">
-                                      {msg.senderRoleTitle}
-                                    </span>
+                                    <p className="text-[10px] text-slate-600 font-semibold truncate">{msg.senderRoleTitle}</p>
                                   )}
                                 </div>
-                                <span className="text-[9px] text-slate-400 font-mono">{msg.timestamp}</span>
+                                <span className="text-[10px] text-slate-500 font-mono shrink-0">{msg.timestamp}</span>
                               </div>
 
-                              <p className="text-[11px] leading-relaxed whitespace-pre-line text-slate-100 font-medium">
+                              <p className="text-[13px] leading-7 whitespace-pre-line text-slate-900 font-semibold">
                                 {msg.messageText}
                               </p>
 
-                              <div className="flex items-center justify-between text-[9px] text-slate-300 pt-1 border-t border-white/10">
-                                <span>{msg.provinceName || 'عموم العراق'}</span>
-                                {isUrgent && (
-                                  <span className="text-rose-400 font-black">⚠️ برقية عاجلة جداً</span>
-                                )}
+                              <div className="flex items-center justify-between text-[10px] text-slate-600 pt-1 border-t border-slate-200">
+                                <span className="font-bold">{msg.provinceName || 'عموم العراق'}</span>
+                                {isUrgent && <span className="text-rose-700 font-black">برقية عاجلة</span>}
+                                {isBroadcast && !isUrgent && <span className="text-amber-800 font-black">تعميم</span>}
                               </div>
                             </div>
                           );
@@ -2240,27 +2380,25 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     <div ref={chatMessagesEndRef} />
                   </div>
 
-                  {/* MESSAGE INPUT FORM */}
-                  <div className="bg-slate-900/80 backdrop-blur-xl p-3 rounded-2xl border border-white/10 space-y-2.5 shadow-xl ring-1 ring-white/5">
-                    <div className="flex items-center justify-between text-[10px] text-slate-300">
-                      <label className="flex items-center gap-1.5 cursor-pointer font-bold">
+                  <div className="bg-white p-3 rounded-2xl border border-emerald-200 space-y-2.5 shadow-sm">
+                    <div className="flex items-center justify-between text-[10px] text-slate-700 font-bold">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={isUrgentMessage}
                           onChange={(e) => setIsUrgentMessage(e.target.checked)}
-                          className="rounded text-rose-500 focus:ring-rose-400 bg-slate-900 border-white/20"
+                          className="rounded text-rose-600"
                         />
-                        <span className={isUrgentMessage ? 'text-rose-400 font-black' : ''}>🚨 تصنيف كبرقية عاجلة / طوارئ</span>
+                        <span className={isUrgentMessage ? 'text-rose-700 font-black' : 'text-slate-800'}>تصنيف كبرقية عاجلة</span>
                       </label>
-
-                      <label className="flex items-center gap-1.5 cursor-pointer font-bold">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={includeGpsInMessage}
                           onChange={(e) => setIncludeGpsInMessage(e.target.checked)}
-                          className="rounded text-amber-500 focus:ring-amber-400 bg-slate-900 border-white/20"
+                          className="rounded text-emerald-600"
                         />
-                        <span>📍 إرفاق موقع العيادة والـ GPS</span>
+                        <span className="text-slate-800">إرفاق الموقع GPS</span>
                       </label>
                     </div>
 
@@ -2276,20 +2414,20 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                             handleSendFieldChatMessage();
                           }
                         }}
-                        placeholder="اكتب رسالة أو بلاغ لغرفة العمليات المركزية..."
-                        className="flex-1 bg-slate-900/90 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-amber-400 font-medium"
+                        placeholder="اكتب رسالة لغرفة العمليات..."
+                        className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-emerald-600 font-semibold"
                       />
                       <button
                         type="button"
                         id="pwa-chat-send-btn"
                         onClick={() => handleSendFieldChatMessage()}
                         disabled={!chatInput.trim()}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                        className={`px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 ${
                           chatInput.trim()
                             ? isUrgentMessage
-                              ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg'
-                              : 'bg-gradient-to-r from-emerald-500 to-amber-500 text-slate-950 shadow-lg'
-                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-emerald-700 text-white'
+                            : 'bg-slate-200 text-slate-500 cursor-not-allowed'
                         }`}
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -2300,41 +2438,77 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                 </div>
               )}
 
-            {/* FEATURE 3: QUICK ACTION BUTTONS (DROP A PIN & OPERATIONS CHAT) */}
-            <div className="pt-1 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                id="pwa-unregistered-fab"
-                onClick={() => setShowUnregModal(true)}
-                className="w-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold py-2 px-2.5 rounded-xl text-[10px] flex items-center justify-center gap-1.5 shadow-lg cursor-pointer transition border border-red-400/40 active:scale-95"
-              >
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-300 animate-pulse shrink-0" />
-                <span className="truncate">رصد عيادة غير مسجلة</span>
-              </button>
-
-              <button
-                type="button"
-                id="pwa-bottom-chat-btn"
-                onClick={() => setPwaTab('CHAT')}
-                className={`w-full font-extrabold py-2 px-2.5 rounded-xl text-[10px] flex items-center justify-center gap-1.5 shadow-lg cursor-pointer transition border active:scale-95 ${
-                  pwaTab === 'CHAT'
-                    ? 'bg-amber-500 text-slate-950 border-amber-300 font-black ring-2 ring-amber-400/40'
-                    : 'bg-gradient-to-r from-emerald-700 via-teal-700 to-cyan-700 hover:from-emerald-600 hover:to-cyan-600 text-white border-emerald-400/40'
-                }`}
-                title="شات غرفة العمليات"
-              >
-                <Radio className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                <span className="truncate">شات غرفة العمليات</span>
-                <span className="bg-red-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full shrink-0 animate-pulse">
-                  مباشر
-                </span>
-              </button>
-            </div>
-
               {/* TAB 8: ACCOUNT PROFILE */}
               {pwaTab === 'ACCOUNT' && (
                 <div className="space-y-4 animate-in slide-in-from-right relative z-0 h-full">
                   <AccountProfile user={currentUser} isMobile={true} />
+                </div>
+              )}
+              {pwaTab === 'SETTINGS' && (
+                <div className="space-y-4 animate-in fade-in relative z-0">
+                  <div
+                    className="rounded-2xl p-3.5 space-y-3 border-2 shadow-md"
+                    style={{
+                      background: 'var(--theme-panel-bg)',
+                      borderColor: 'var(--theme-primary)',
+                      color: 'var(--theme-panel-text)'
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-right">
+                        <h3 className="font-black text-sm">المظهر</h3>
+                        <p className="text-[10px] font-bold opacity-80">الثيمات الرسمية للمنصة وحجم الخط</p>
+                        <p className="text-[11px] font-extrabold mt-0.5">الثيم الحالي: {currentThemePreset.icon} {currentThemePreset.nameAr}</p>
+                      </div>
+                      <Palette className="w-6 h-6 shrink-0" style={{ color: 'var(--theme-accent)' }} />
+                    </div>
+                    <p className="text-[10px] font-black text-right" style={{ color: 'var(--theme-accent)' }}>الثيمات الرسمية للمنصة</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {medicalThemePresets.map((preset) => {
+                        const selected = medicalTheme === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setMedicalTheme(preset.id)}
+                            className="text-right text-[10px] font-black p-2.5 rounded-xl border-2 cursor-pointer"
+                            style={{
+                              background: selected ? preset.colors.primary : preset.colors.card,
+                              color: selected ? preset.colors.onPrimary : preset.colors.text,
+                              borderColor: selected ? preset.colors.primary : preset.colors.border
+                            }}
+                          >
+                            <span className="flex h-2.5 w-full rounded-full overflow-hidden mb-1.5">
+                              <span className="flex-1" style={{ background: preset.colors.sidebar }} />
+                              <span className="flex-1" style={{ background: preset.colors.primary }} />
+                              <span className="flex-1" style={{ background: preset.colors.accent }} />
+                            </span>
+                            <span className="flex items-center justify-between gap-1">
+                              <span>{preset.icon} {preset.nameAr}</span>
+                              {selected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black mb-2 text-right" style={{ color: 'var(--theme-accent)' }}>حجم الخط الأساسي</p>
+                      <div className="flex items-center justify-between rounded-xl p-1 border" style={{ borderColor: 'var(--theme-panel-border)' }}>
+                        {['صغير جداً', 'صغير', 'متوسط', 'كبير'].map((lbl, idx) => (
+                          <button
+                            key={lbl}
+                            type="button"
+                            onClick={() => {
+                              document.documentElement.style.fontSize = `${13 + (idx * 1.5)}px`;
+                            }}
+                            className="flex-1 py-1.5 text-center text-[10px] font-bold rounded-lg cursor-pointer"
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               {pwaTab === 'MORE' && (
@@ -2355,7 +2529,8 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       <button
                         type="button"
                         onClick={() => setIsCustomizingTools(true)}
-                        className="bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                        className="px-2.5 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95 border"
+                        style={{ background: currentThemePreset.colors.primary, color: currentThemePreset.colors.onPrimary, borderColor: currentThemePreset.colors.primary }}
                         title="تخصيص ترتيب وظهور أدوات الشاشة الرئيسية"
                       >
                         <Settings className="w-3.5 h-3.5" />
@@ -2414,7 +2589,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* 1.2 الزون الخاص بي (المحافظة، القضاء، المنطقة) */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('MY_ZONE')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-teal-500/15 text-teal-400 flex items-center justify-center border border-teal-500/30 shrink-0">
@@ -2450,7 +2625,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                             onChange={(e) => setZoneGovernorate(e.target.value)}
                             className="w-full bg-slate-950 border border-white/15 rounded-lg p-1.5 text-xs text-white font-bold focus:outline-none focus:border-teal-400"
                           >
-                            {['بغداد', 'البصرة', 'أربيل', 'النجف الأشرف', 'كربلاء المقدسة', 'نينوى', 'كركوك', 'بابل', 'ذي قار', 'ميسان', 'ديالى', 'صلاح الدين', 'الأنبار', 'واسط', 'المثنى', 'القادسية', 'دهوك', 'السليمانية'].map(gov => (
+                            {['بغداد', 'البصرة', 'النجف الأشرف', 'كربلاء المقدسة', 'نينوى', 'كركوك', 'بابل', 'ذي قار', 'ميسان', 'ديالى', 'صلاح الدين', 'الأنبار', 'واسط', 'المثنى', 'القادسية'].map(gov => (
                               <option key={gov} value={gov}>{gov}</option>
                             ))}
                           </select>
@@ -2507,7 +2682,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* 2.1 المهام (مكتملة، حالية، مستقبلية) */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('TASKS_MORE')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
@@ -2592,7 +2767,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </details>
 
                     {/* 2.2 ملف الكشف (كشوفات سابقة، حالية، مستقبلية) */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('INSPECT_FILES')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
@@ -2668,7 +2843,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </details>
 
                     {/* 2.3 ملف التفتيش (جولات تفتيشية سابقة، حالية، مستقبلية) */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('PATROL_FILES')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30 shrink-0">
@@ -2893,7 +3068,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       <span className="text-[10px] text-slate-400 font-bold">🏛️ معاملات وترخيص</span>
                     </div>
 
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md" open>
+                    <details {...moreDetailsProps('SERVICES')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
@@ -3079,7 +3254,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* 4.1 المراسلات والتواصل (نصية، صور، بصمات صوتية، كروبات، تواصل مع مسؤول اللجنة) */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('COMMUNICATIONS')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30 shrink-0">
@@ -3244,7 +3419,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* 4.4 لوائح وتعليمات لجنة الانضباط */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('DISCIPLINE')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
@@ -3335,6 +3510,34 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     </div>
 
                     {/* 5.2 تصدير تقرير الجولة (PDF) وتصدير سجل المهام (Excel) */}
+                    <details {...moreDetailsProps('REPORTS')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                      <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
+                        <div className="flex items-center gap-2.5 flex-1">
+                          <div className="w-9 h-9 rounded-full bg-slate-500/15 text-slate-100 flex items-center justify-center border border-white/10 shrink-0">
+                            <FileSpreadsheet className="w-4 h-4" />
+                          </div>
+                          <div className="text-right">
+                            <h4 className="font-extrabold text-white text-xs">التقارير والمحاضر</h4>
+                            <p className="text-[10px] text-slate-300 font-medium">تصدير PDF وExcel لمحاضر الجولة</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); togglePinToHome('REPORTS'); }}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-black flex items-center gap-1 transition cursor-pointer ${
+                              quickActions.includes('REPORTS')
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10'
+                            }`}
+                          >
+                            {quickActions.includes('REPORTS') ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+                            <span>{quickActions.includes('REPORTS') ? 'مثبت' : 'تثبيت'}</span>
+                          </button>
+                          <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
+                        </div>
+                      </summary>
+                      <div className="p-3 bg-slate-950/80 border-t border-white/10">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-slate-900/80 border border-white/10 p-2.5 rounded-xl flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => window.print()}>
@@ -3376,9 +3579,11 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                         </button>
                       </div>
                     </div>
+                      </div>
+                    </details>
 
                     {/* 5.3 دليل المستخدم الميداني */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    <details {...moreDetailsProps('GUIDE')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
                           <div className="w-9 h-9 rounded-full bg-slate-500/15 text-slate-300 flex items-center justify-center border border-white/10 shrink-0">
@@ -3418,16 +3623,16 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                       </div>
                     </details>
 
-                    {/* 5.4 المظهر وتخصيص العرض */}
-                    <details className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
+                    {/* 5.5 المظهر */}
+                    <details {...moreDetailsProps('SETTINGS')} className="group [&_summary::-webkit-details-marker]:hidden bg-slate-900/80 border border-white/10 rounded-xl overflow-hidden shadow-md">
                       <summary className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition">
                         <div className="flex items-center gap-2.5 flex-1">
-                          <div className="w-9 h-9 rounded-full bg-orange-500/15 text-orange-400 flex items-center justify-center border border-orange-500/30 shrink-0">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center border shrink-0" style={{ background: 'color-mix(in srgb, var(--theme-primary) 22%, transparent)', borderColor: 'var(--theme-primary)', color: 'var(--theme-accent)' }}>
                             <Palette className="w-4 h-4" />
                           </div>
                           <div className="text-right">
-                            <h4 className="font-extrabold text-white text-xs">المظهر وتخصيص العرض</h4>
-                            <p className="text-[10px] text-slate-300 font-medium">الثيمات، الألوان وحجم الخط الأساسي</p>
+                            <h4 className="font-extrabold text-white text-xs">المظهر</h4>
+                            <p className="text-[10px] text-slate-300 font-medium">الثيمات الرسمية للمنصة وحجم الخط — {currentThemePreset.icon} {currentThemePreset.nameAr}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -3446,39 +3651,52 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                           <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
                         </div>
                       </summary>
-                      <div className="p-3 bg-slate-950/90 backdrop-blur-xl border-t border-white/10 flex flex-col gap-3 shadow-inner">
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-200 block mb-2 text-right">المظهر (الثيمات الـ 7):</label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {medicalThemePresets.map(preset => (
+                      <div className="p-3 bg-slate-950/80 border-t border-white/10 space-y-3">
+                        <p className="text-[10px] font-black text-right" style={{ color: 'var(--theme-accent)' }}>الثيمات الرسمية للمنصة</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {medicalThemePresets.map((preset) => {
+                            const selected = medicalTheme === preset.id;
+                            return (
                               <button
                                 key={preset.id}
-                                onClick={(e) => { e.preventDefault(); setMedicalTheme(preset.id); }}
-                                className={`text-right text-[10px] font-bold p-2 rounded-lg border transition-colors flex items-center justify-between cursor-pointer ${
-                                  medicalTheme === preset.id
-                                    ? 'bg-emerald-600 border-emerald-500 text-white shadow'
-                                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                                }`}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMedicalTheme(preset.id);
+                                }}
+                                className="text-right text-[10px] font-black p-2.5 rounded-xl border-2 cursor-pointer"
+                                style={{
+                                  background: selected ? preset.colors.primary : preset.colors.card,
+                                  color: selected ? preset.colors.onPrimary : preset.colors.text,
+                                  borderColor: selected ? preset.colors.primary : preset.colors.border
+                                }}
                               >
-                                <span>{preset.id === 'executive-night' ? 'الوضع الليلي التنفيذي' : preset.id === 'medical-sky' ? 'سماء طبية' : preset.id === 'medical-ocean' ? 'محيط هادئ' : preset.id === 'medical-emerald' ? 'أخضر نقابي' : preset.id}</span>
-                                {medicalTheme === preset.id && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                <span className="flex h-2.5 w-full rounded-full overflow-hidden mb-1.5">
+                                  <span className="flex-1" style={{ background: preset.colors.sidebar }} />
+                                  <span className="flex-1" style={{ background: preset.colors.primary }} />
+                                  <span className="flex-1" style={{ background: preset.colors.accent }} />
+                                </span>
+                                <span className="flex items-center justify-between gap-1">
+                                  <span>{preset.icon} {preset.nameAr}</span>
+                                  {selected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                                </span>
                               </button>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
-
                         <div>
-                          <label className="text-[10px] font-bold text-slate-200 block mb-2 text-right">حجم الخط الأساسي:</label>
-                          <div className="flex items-center justify-between bg-slate-900 border border-white/10 rounded-xl p-1">
+                          <p className="text-[10px] font-black mb-2 text-right" style={{ color: 'var(--theme-accent)' }}>حجم الخط الأساسي</p>
+                          <div className="flex items-center justify-between rounded-xl p-1 border border-white/10">
                             {['صغير جداً', 'صغير', 'متوسط', 'كبير'].map((lbl, idx) => (
                               <button
                                 key={lbl}
+                                type="button"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const baseSize = 13 + (idx * 1.5);
-                                  document.documentElement.style.fontSize = `${baseSize}px`;
+                                  e.stopPropagation();
+                                  document.documentElement.style.fontSize = `${13 + (idx * 1.5)}px`;
                                 }}
-                                className="flex-1 py-1.5 text-center text-[10px] font-bold text-slate-300 rounded-lg hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                                className="flex-1 py-1.5 text-center text-[10px] font-bold text-slate-300 rounded-lg hover:bg-slate-800 hover:text-white cursor-pointer"
                               >
                                 {lbl}
                               </button>
@@ -3487,23 +3705,6 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                         </div>
                       </div>
                     </details>
-
-                    {/* 5.5 البوابة المركزية للنقابة */}
-                    <a 
-                      href="/" 
-                      className="w-full bg-slate-900/80 hover:bg-slate-800/90 backdrop-blur-md transition-all border border-white/10 p-3 rounded-xl flex items-center justify-between group active:scale-95 shadow-md cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                          <Building2 className="w-4 h-4" />
-                        </div>
-                        <div className="text-right">
-                          <h4 className="font-extrabold text-white text-xs">بوابة المنصة المركزية</h4>
-                          <p className="text-[10px] text-slate-300 font-medium">الانتقال للمنصة الإدارية الشاملة لنقابة التمريض</p>
-                        </div>
-                      </div>
-                      <ArrowUpRight className="w-4 h-4 text-slate-400" />
-                    </a>
 
                     {/* 5.6 حول البرنامج وإنهاء الوردية */}
                     <div className="pt-2 flex items-center justify-between text-[10px] text-slate-400 border-t border-white/10">
@@ -3534,7 +3735,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
             </div>
 
             {/* Mobile Bottom Navigation Bar - Sticky Glass Dock (Matching Design Mockup) */}
-            <div className="shrink-0 z-40 w-full bg-[#071120]/90 backdrop-blur-2xl border-t border-white/15 shadow-[0_-10px_35px_rgba(0,0,0,0.7)]">
+            <div id="pwa-bottom-nav" className="shrink-0 z-40 w-full border-t shadow-[0_-8px_24px_rgba(15,23,42,0.08)]" style={{ background: currentThemePreset.colors.card, borderColor: currentThemePreset.colors.border }}>
               <nav className="px-3 py-2 flex items-center justify-around">
                 {/* 1. الرئيسية */}
                 <button
@@ -3545,9 +3746,10 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                   }}
                   className={`flex flex-col items-center gap-1 py-1.5 px-4 rounded-2xl transition-all cursor-pointer ${
                     pwaTab === 'MISSION' && homeView === 'DASHBOARD'
-                      ? 'bg-sky-500/20 text-sky-300 font-black border border-sky-400/50 shadow-[0_0_15px_rgba(56,189,248,0.25)] scale-105'
-                      : 'text-slate-400 hover:text-slate-200 font-bold'
+                      ? 'text-white font-black scale-105'
+                      : 'font-bold'
                   }`}
+                  style={pwaTab === 'MISSION' && homeView === 'DASHBOARD' ? { background: currentThemePreset.colors.primary, color: currentThemePreset.colors.onPrimary } : { color: currentThemePreset.colors.muted }}
                 >
                   <Home className="w-5 h-5" />
                   <span className="text-[10px]">الرئيسية</span>
@@ -3562,9 +3764,10 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                   }}
                   className={`flex flex-col items-center gap-1 py-1.5 px-4 rounded-2xl transition-all cursor-pointer ${
                     pwaTab === 'MISSION' && homeView === 'TASKS'
-                      ? 'bg-amber-500/20 text-amber-300 font-black border border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.25)] scale-105'
-                      : 'text-slate-400 hover:text-slate-200 font-bold'
+                      ? 'font-black scale-105'
+                      : 'font-bold'
                   }`}
+                  style={pwaTab === 'MISSION' && homeView === 'TASKS' ? { background: currentThemePreset.colors.accent, color: currentThemePreset.colors.onAccent } : { color: currentThemePreset.colors.muted }}
                 >
                   <ClipboardCheck className="w-5 h-5" />
                   <span className="text-[10px]">المهام</span>
@@ -3575,10 +3778,9 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                   id="pwa-tab-checklist"
                   onClick={() => setPwaTab('CHECKLIST')}
                   className={`flex flex-col items-center gap-1 py-1.5 px-4 rounded-2xl transition-all cursor-pointer ${
-                    pwaTab === 'CHECKLIST'
-                      ? 'bg-emerald-500/20 text-emerald-300 font-black border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.25)] scale-105'
-                      : 'text-slate-400 hover:text-slate-200 font-bold'
+                    pwaTab === 'CHECKLIST' ? 'text-white font-black scale-105' : 'font-bold'
                   }`}
+                  style={pwaTab === 'CHECKLIST' ? { background: currentThemePreset.colors.primary, color: currentThemePreset.colors.onPrimary } : { color: currentThemePreset.colors.muted }}
                 >
                   <FileText className="w-5 h-5" />
                   <span className="text-[10px]">الكشوفات</span>
@@ -3592,10 +3794,11 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                     setActiveMoreSection(null);
                   }}
                   className={`flex flex-col items-center gap-1 py-1.5 px-4 rounded-2xl transition-all cursor-pointer ${
-                    ['MORE', 'PHOTOS', 'SIGNATURE', 'CHAT', 'ACCOUNT', 'SCANNER', 'VIOLATIONS'].includes(pwaTab)
-                      ? 'bg-indigo-500/20 text-indigo-300 font-black border border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.25)] scale-105'
-                      : 'text-slate-400 hover:text-slate-200 font-bold'
+                    ['MORE', 'PHOTOS', 'SIGNATURE', 'CHAT', 'ACCOUNT', 'SCANNER', 'VIOLATIONS', 'SETTINGS'].includes(pwaTab)
+                      ? 'text-white font-black scale-105'
+                      : 'font-bold'
                   }`}
+                  style={['MORE', 'PHOTOS', 'SIGNATURE', 'CHAT', 'ACCOUNT', 'SCANNER', 'VIOLATIONS', 'SETTINGS'].includes(pwaTab) ? { background: currentThemePreset.colors.sidebar, color: '#fff' } : { color: currentThemePreset.colors.muted }}
                 >
                   <LayoutGrid className="w-5 h-5" />
                   <span className="text-[10px]">المزيد</span>
@@ -3604,7 +3807,7 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
 
               {/* Mobile Bottom Home Bar Indicator */}
               <div className="pb-1 pt-0.5 text-center">
-                <div className="w-24 h-1 bg-white/20 mx-auto rounded-full"></div>
+                <div className="w-24 h-1 mx-auto rounded-full" style={{ background: 'var(--theme-primary)' }}></div>
               </div>
             </div>
           </div>
@@ -3973,54 +4176,6 @@ export const FieldInspectorMobile: React.FC<FieldInspectorMobileProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {/* Profile Popup */}
-      {showProfilePopup && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in" onClick={() => setShowProfilePopup(false)}>
-          <div className="bg-slate-900/95 backdrop-blur-2xl rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/15 flex flex-col relative text-white ring-1 ring-white/10 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-emerald-500/20 to-teal-600/20"></div>
-            <div className="p-6 flex flex-col items-center relative z-10">
-              <button onClick={() => setShowProfilePopup(false)} className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full text-slate-300 hover:text-white transition">
-                <X className="w-5 h-5" />
-              </button>
-              
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-700 shadow-lg bg-slate-800 mb-4">
-                {currentUser.avatar ? (
-                  <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" alt="Profile" className="w-full h-full object-cover" />
-                )}
-              </div>
-              
-              <h3 className="text-xl font-black text-white">{currentUser.name}</h3>
-              <p className="text-emerald-400 font-bold mt-1 text-sm">{currentUser.role === 'FIELD_INSPECTOR' ? 'مفتش ميداني' : currentUser.role}</p>
-              
-              <div className="mt-4 w-full space-y-2 text-sm text-slate-300">
-                <div className="flex justify-between items-center bg-slate-950/50 p-2.5 rounded-lg border border-white/5">
-                  <span>المحافظة:</span>
-                  <strong className="text-white">{currentUser.governorate || 'بغداد'}</strong>
-                </div>
-                <div className="flex justify-between items-center bg-slate-950/50 p-2.5 rounded-lg border border-white/5">
-                  <span>الرقم النقابي:</span>
-                  <strong className="text-white">{currentUser.badgeNumber || 'INS-IQ-001'}</strong>
-                </div>
-              </div>
-              
-              <button
-                onClick={() => {
-                  if (confirm('هل أنت متأكد من تسجيل الخروج من النظام؟')) {
-                    localStorage.clear(); localStorage.setItem('isLoggedOut', 'true');
-                    window.location.href = '/';
-                  }
-                }}
-                className="mt-6 w-full bg-rose-600 hover:bg-rose-500 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>تسجيل الخروج</span>
-              </button>
-            </div>
           </div>
         </div>
       )}

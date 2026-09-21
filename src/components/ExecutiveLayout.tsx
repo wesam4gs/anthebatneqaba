@@ -122,11 +122,18 @@ export const ExecutiveLayout: React.FC<ExecutiveLayoutProps> = ({
  badgeColor: ''
  },
  {
- id: 'zone_manager',
- label: lang === 'ar' ? 'إدارة خطط لجان التفتيش' : 'Inspection Plans & Zones',
- icon: '▣',
- badge: null,
- badgeColor: ''
+ id: 'branch_network',
+ label: lang === 'ar' ? 'شبكة الفروع' : 'Branch Network',
+ icon: '◈',
+ badge: lang === 'ar' ? '15 فرع' : '15',
+ badgeColor: 'bg-cyan-600 text-white font-bold'
+ },
+ {
+ id: 'form_engine',
+ label: lang === 'ar' ? 'محرك استمارات الكشف' : 'Form Engine',
+ icon: '⎔',
+ badge: lang === 'ar' ? 'JSON' : 'JSON',
+ badgeColor: 'bg-violet-600 text-white font-bold'
  },
  {
  id: 'users_management',

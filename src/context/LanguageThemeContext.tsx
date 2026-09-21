@@ -24,11 +24,53 @@ export interface MedicalThemePreset {
   isDark: boolean;
   colors: {
     canvas: string;
+    card: string;
     sidebar: string;
+    sidebarBorder: string;
     primary: string;
     accent: string;
     border: string;
+    text: string;
+    muted: string;
+    onPrimary: string;
+    onAccent: string;
   };
+}
+
+export function applyMedicalThemeCssVars(target: HTMLElement, preset: MedicalThemePreset) {
+  const style = target.style;
+  const { colors, id } = preset;
+  const panelInk: Record<MedicalThemeId, { link: string; accent: string }> = {
+    'medical-sky': { link: '#bfdbfe', accent: '#fde68a' },
+    'clinical-blue': { link: '#c7d2fe', accent: '#fde68a' },
+    'pure-white': { link: '#99f6e4', accent: '#fdba74' },
+    'soft-mint': { link: '#bbf7d0', accent: '#fde68a' },
+    'warm-amber': { link: '#fed7aa', accent: '#93c5fd' },
+    'slate-pearl': { link: '#e2e8f0', accent: '#fde68a' },
+    'executive-night': { link: '#fde68a', accent: '#67e8f9' }
+  };
+  const ink = panelInk[id];
+  style.setProperty('--theme-canvas', colors.canvas);
+  style.setProperty('--theme-card-bg', colors.card);
+  style.setProperty('--theme-sidebar-bg', colors.sidebar);
+  style.setProperty('--theme-sidebar-border', colors.sidebarBorder);
+  style.setProperty('--theme-primary', colors.primary);
+  style.setProperty('--theme-accent', colors.accent);
+  style.setProperty('--theme-card-border', colors.border);
+  style.setProperty('--theme-header-bg', colors.card);
+  style.setProperty('--theme-header-border', colors.border);
+  style.setProperty('--theme-text-primary', colors.text);
+  style.setProperty('--theme-text-muted', colors.muted);
+  style.setProperty('--theme-on-primary', colors.onPrimary);
+  style.setProperty('--theme-on-accent', colors.onAccent);
+  style.setProperty('--theme-primary-soft', `color-mix(in srgb, ${colors.primary} 28%, ${colors.card})`);
+  style.setProperty('--theme-accent-soft', `color-mix(in srgb, ${colors.accent} 24%, ${colors.card})`);
+  style.setProperty('--theme-panel-bg', `color-mix(in srgb, ${colors.sidebar} 78%, ${colors.primary})`);
+  style.setProperty('--theme-panel-text', '#f8fafc');
+  style.setProperty('--theme-panel-muted', '#e2e8f0');
+  style.setProperty('--theme-panel-link', ink.link);
+  style.setProperty('--theme-panel-accent', ink.accent);
+  style.setProperty('--theme-panel-border', `color-mix(in srgb, ${ink.accent} 42%, ${colors.sidebar})`);
 }
 
 export const MEDICAL_THEMES: MedicalThemePreset[] = [
@@ -36,126 +78,168 @@ export const MEDICAL_THEMES: MedicalThemePreset[] = [
     id: 'medical-sky',
     nameAr: 'سمائي',
     nameEn: 'Sky',
-    descAr: 'التصميم الرسمي المعتمد: أزرق ملكي للشريط وخلفية سريرية نقية.',
-    descEn: 'Official national design: Royal blue sidebar with clean clinic canvas.',
+    descAr: 'الهوية الرسمية: كحلي دجلة وذهب سومري.',
+    descEn: 'Official identity: Tigris navy and Sumerian gold.',
     badgeAr: 'رسمي',
     badgeEn: 'Official',
     icon: '🩺',
     isDark: false,
     colors: {
-      canvas: '#f1f5f9',
-      sidebar: '#0c325e',
-      primary: '#0284c7',
-      accent: '#f59e0b',
-      border: '#e2e8f0'
+      canvas: '#6b93c4',
+      card: '#dceaf8',
+      sidebar: '#061e3d',
+      sidebarBorder: '#0a3a6e',
+      primary: '#0a4f96',
+      accent: '#c9a227',
+      border: '#4d78ab',
+      text: '#061427',
+      muted: '#3d5873',
+      onPrimary: '#ffffff',
+      onAccent: '#1a1206'
     }
   },
   {
     id: 'clinical-blue',
     nameAr: 'أزرق',
     nameEn: 'Blue',
-    descAr: 'أزرق سريري هادئ يعكس أروقة المستشفيات.',
-    descEn: 'Serene hospital blue and clean slate.',
+    descAr: 'ياقوت أزرق وقائي لهيبة الرقابة الصحية.',
+    descEn: 'Deep sapphire for inspection authority.',
     badgeAr: 'أزرق',
     badgeEn: 'Blue',
     icon: '🏥',
     isDark: false,
     colors: {
-      canvas: '#f3f7fc',
-      sidebar: '#0b1c36',
-      primary: '#2563eb',
-      accent: '#eab308',
-      border: '#bfdbfe'
+      canvas: '#4a6fd0',
+      card: '#d4defa',
+      sidebar: '#04122b',
+      sidebarBorder: '#1e3a8a',
+      primary: '#1d4ed8',
+      accent: '#d4a017',
+      border: '#3d5fc4',
+      text: '#07122a',
+      muted: '#334e7a',
+      onPrimary: '#ffffff',
+      onAccent: '#1a1206'
     }
   },
   {
     id: 'pure-white',
     nameAr: 'أبيض',
     nameEn: 'White',
-    descAr: 'أبيض ناصع معقم مريح وخالٍ من التشويش.',
-    descEn: 'Sterilized clean clinic white.',
+    descAr: 'أبيض نقابي صارم مع فيروز وذهب.',
+    descEn: 'Strict syndicate white with teal and gold.',
     badgeAr: 'أبيض',
     badgeEn: 'White',
     icon: '🥼',
     isDark: false,
     colors: {
-      canvas: '#f8fafc',
-      sidebar: '#0f172a',
-      primary: '#0d9488',
-      accent: '#eab308',
-      border: '#e2e8f0'
+      canvas: '#d1d5db',
+      card: '#ffffff',
+      sidebar: '#111827',
+      sidebarBorder: '#1f2937',
+      primary: '#0f766e',
+      accent: '#b45309',
+      border: '#9ca3af',
+      text: '#111827',
+      muted: '#4b5563',
+      onPrimary: '#ffffff',
+      onAccent: '#ffffff'
     }
   },
   {
     id: 'soft-mint',
     nameAr: 'زمردي',
     nameEn: 'Mint',
-    descAr: 'نعناع وزمرد صحي مهدئ للأعصاب وللأعين.',
-    descEn: 'Therapeutic mint and health green.',
+    descAr: 'أخضر العراق العميق: نخيل وذهب.',
+    descEn: 'Deep Iraqi palm green and gold.',
     badgeAr: 'زمردي',
     badgeEn: 'Mint',
     icon: '🌿',
     isDark: false,
     colors: {
-      canvas: '#f1f7f4',
-      sidebar: '#082119',
-      primary: '#059669',
-      accent: '#d97706',
-      border: '#a7f3d0'
+      canvas: '#5fa87a',
+      card: '#d8f3e5',
+      sidebar: '#052e16',
+      sidebarBorder: '#14532d',
+      primary: '#15803d',
+      accent: '#c9a227',
+      border: '#2f8a52',
+      text: '#052e16',
+      muted: '#3f6b4c',
+      onPrimary: '#ffffff',
+      onAccent: '#1a1206'
     }
   },
   {
     id: 'warm-amber',
     nameAr: 'عنبري',
     nameEn: 'Amber',
-    descAr: 'عاجي وعنبري دافئ يمنح وقاراً وسكينة.',
-    descEn: 'Warm linen ivory with syndicate amber.',
+    descAr: 'ذهب بابلي وكحلي ملكي.',
+    descEn: 'Babylonian gold and royal navy.',
     badgeAr: 'عنبري',
     badgeEn: 'Amber',
     icon: '⚜️',
     isDark: false,
     colors: {
-      canvas: '#fcf9f4',
-      sidebar: '#1c1814',
-      primary: '#d97706',
-      accent: '#0284c7',
-      border: '#fed7aa'
+      canvas: '#c9922a',
+      card: '#ffe8b0',
+      sidebar: '#1a1206',
+      sidebarBorder: '#5c430d',
+      primary: '#b45309',
+      accent: '#0a4f96',
+      border: '#a67c1a',
+      text: '#1c1308',
+      muted: '#6b5428',
+      onPrimary: '#ffffff',
+      onAccent: '#ffffff'
     }
   },
   {
     id: 'slate-pearl',
     nameAr: 'رمادي',
     nameEn: 'Slate',
-    descAr: 'رمادي باستيل بهت ومطفأ ضد الإجهاد البصري.',
-    descEn: 'Muted slate and pearl gray.',
+    descAr: 'فحم رئاسي ولؤلؤ مع لمسة ذهب.',
+    descEn: 'Presidential charcoal with gold.',
     badgeAr: 'رمادي',
     badgeEn: 'Slate',
     icon: '🕊️',
     isDark: false,
     colors: {
-      canvas: '#f0f3f7',
-      sidebar: '#16202e',
-      primary: '#475569',
-      accent: '#38bdf8',
-      border: '#cbd5e1'
+      canvas: '#6b7688',
+      card: '#d8dde6',
+      sidebar: '#0b1220',
+      sidebarBorder: '#334155',
+      primary: '#1e293b',
+      accent: '#c9a227',
+      border: '#4b5568',
+      text: '#0f172a',
+      muted: '#475569',
+      onPrimary: '#ffffff',
+      onAccent: '#1a1206'
     }
   },
   {
     id: 'executive-night',
     nameAr: 'ليلي',
     nameEn: 'Night',
-    descAr: 'النمط الداكن الرقابي المعتمد الأصلي للمنصة.',
-    descEn: 'Muted executive syndicate dark night.',
+    descAr: 'غرفة عمليات ليلية: أسود وذهب عراقي.',
+    descEn: 'Night operations: black and Iraqi gold.',
     badgeAr: 'ليلي',
     badgeEn: 'Night',
     icon: '🌙',
     isDark: true,
     colors: {
-      canvas: '#030712',
-      sidebar: '#091122',
-      primary: '#f59e0b',
-      accent: '#06b6d4',
-      border: '#1e293b'
+      canvas: '#020617',
+      card: '#0a1224',
+      sidebar: '#020617',
+      sidebarBorder: '#c9a227',
+      primary: '#e8b923',
+      accent: '#22d3ee',
+      border: '#1e3a5f',
+      text: '#f8fafc',
+      muted: '#94a3b8',
+      onPrimary: '#1a1206',
+      onAccent: '#020617'
     }
   }
 ];
@@ -346,9 +430,13 @@ export const translations: TranslationsMap = {
     ar: 'خريطة GIS التفاعلية',
     en: 'GIS Interactive Map'
   },
-  tab_zone_manager: {
-    ar: 'إدارة خطط لجان التفتيش',
-    en: 'Committee & Zone Plans'
+  tab_branch_network: {
+    ar: 'شبكة الفروع',
+    en: 'Branch Network'
+  },
+  tab_form_engine: {
+    ar: 'محرك استمارات الكشف',
+    en: 'Dynamic Form Engine'
   },
   tab_users_management: {
     ar: 'إدارة المستخدمين واللجان',
@@ -435,8 +523,8 @@ export const translations: TranslationsMap = {
     en: 'Province'
   },
   allProvinces: {
-    ar: 'جميع المحافظات الـ 18',
-    en: 'All 18 Provinces'
+    ar: 'جميع المحافظات الـ 15',
+    en: 'All 15 Provinces'
   },
   add: {
     ar: 'إضافة',
@@ -533,6 +621,10 @@ export const translations: TranslationsMap = {
   type_CLINIC: {
     ar: 'عيادة تمريضية / طبية',
     en: 'Nursing / Medical Clinic'
+  },
+  type_MIDWIFE_CLINIC: {
+    ar: 'عيادة قابلات',
+    en: 'Midwife Clinic'
   },
   type_HOSPITAL: {
     ar: 'مستشفى / مركز جراحي',
@@ -647,38 +739,40 @@ export const LanguageThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     document.documentElement.setAttribute('data-theme', medicalTheme);
     document.body.setAttribute('data-theme', medicalTheme);
 
-    // Apply exact CSS variables dynamically across DOM
-    const rootStyle = document.documentElement.style;
-    rootStyle.setProperty('--theme-canvas', currentThemePreset.colors.canvas);
-    rootStyle.setProperty('--theme-sidebar-bg', currentThemePreset.colors.sidebar);
-    rootStyle.setProperty('--theme-primary', currentThemePreset.colors.primary);
-    rootStyle.setProperty('--theme-accent', currentThemePreset.colors.accent);
-    rootStyle.setProperty('--theme-card-border', currentThemePreset.colors.border);
+    const isInspectorApp = document.body.getAttribute('data-app') === 'inspector';
+    applyMedicalThemeCssVars(document.documentElement, currentThemePreset);
 
     if (currentThemePreset.isDark) {
       document.documentElement.classList.add('dark');
-      document.body.classList.add('dark-mode-body');
-      document.body.classList.remove('light-mode-body');
-
-      rootStyle.setProperty('--theme-card-bg', '#091122');
-      rootStyle.setProperty('--theme-sidebar-border', '#1e293b');
-      rootStyle.setProperty('--theme-header-bg', '#070e1d');
-      rootStyle.setProperty('--theme-header-border', '#1e293b');
-      rootStyle.setProperty('--theme-text-primary', '#f8fafc');
-      rootStyle.setProperty('--theme-text-muted', '#94a3b8');
+      if (isInspectorApp) {
+        document.body.classList.remove('dark-mode-body', 'light-mode-body');
+      } else {
+        document.body.classList.add('dark-mode-body');
+        document.body.classList.remove('light-mode-body');
+      }
     } else {
       document.documentElement.classList.remove('dark');
-      document.body.classList.remove('dark-mode-body');
-      document.body.classList.add('light-mode-body');
-
-      rootStyle.setProperty('--theme-card-bg', '#ffffff');
-      rootStyle.setProperty('--theme-sidebar-border', currentThemePreset.id === 'soft-mint' ? '#134234' : (currentThemePreset.id === 'warm-amber' ? '#382f27' : '#163857'));
-      rootStyle.setProperty('--theme-header-bg', '#ffffff');
-      rootStyle.setProperty('--theme-header-border', currentThemePreset.colors.border);
-      rootStyle.setProperty('--theme-text-primary', currentThemePreset.id === 'warm-amber' ? '#2b2118' : (currentThemePreset.id === 'soft-mint' ? '#0e271f' : '#0f2942'));
-      rootStyle.setProperty('--theme-text-muted', currentThemePreset.id === 'warm-amber' ? '#796654' : (currentThemePreset.id === 'soft-mint' ? '#477062' : '#53708c'));
+      if (isInspectorApp) {
+        document.body.classList.remove('dark-mode-body', 'light-mode-body');
+      } else {
+        document.body.classList.remove('dark-mode-body');
+        document.body.classList.add('light-mode-body');
+      }
     }
-  }, [medicalTheme, currentThemePreset.isDark]);
+
+    const inspectorFrame = document.getElementById('pwa-mobile-frame');
+    if (inspectorFrame) {
+      inspectorFrame.setAttribute('data-theme', medicalTheme);
+      applyMedicalThemeCssVars(inspectorFrame, currentThemePreset);
+    }
+
+    if (isInspectorApp) {
+      document.documentElement.setAttribute('data-app', 'inspector');
+      document.documentElement.style.setProperty('background-color', '#0b1220', 'important');
+      document.body.style.setProperty('background-color', '#0b1220', 'important');
+      document.body.style.setProperty('color', '#e2e8f0', 'important');
+    }
+  }, [medicalTheme, currentThemePreset]);
 
   useEffect(() => {
     try {

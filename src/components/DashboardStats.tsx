@@ -209,8 +209,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
  { provinceName: lang === 'ar' ? 'البصرة' : 'Basra', inspected: 8, needsInspection: 4, violationRecorded: 2 },
  { provinceName: lang === 'ar' ? 'نينوى' : 'Nineveh', inspected: 6, needsInspection: 3, violationRecorded: 1 },
  { provinceName: lang === 'ar' ? 'النجف' : 'Najaf', inspected: 5, needsInspection: 2, violationRecorded: 1 },
- { provinceName: lang === 'ar' ? 'كربلاء' : 'Karbala', inspected: 5, needsInspection: 2, violationRecorded: 1 },
- { provinceName: lang === 'ar' ? 'أربيل' : 'Erbil', inspected: 7, needsInspection: 3, violationRecorded: 0 }
+ { provinceName: lang === 'ar' ? 'كربلاء' : 'Karbala', inspected: 5, needsInspection: 2, violationRecorded: 1 }
  ];
  }
 

@@ -16,8 +16,9 @@ import {
   INITIAL_CHAT_MESSAGES,
   INITIAL_BROADCASTS
 } from './src/data/initialData';
+import { INITIAL_INSPECTION_TEMPLATES } from './src/data/inspectionTemplates';
 import { SQL_DATABASE_SCHEMA, SCHEMA_TABLES_DOCS } from './src/data/sqlSchema';
-import { User, Facility, NurseStaff, InspectionAssignment, InspectionReport, ViolationRecord, PriorityLevel, FinancialVoucher, BranchInspectionBudget, BranchChatMessage, DisciplineBroadcast } from './src/types';
+import { User, Facility, NurseStaff, InspectionAssignment, InspectionReport, ViolationRecord, PriorityLevel, FinancialVoucher, BranchInspectionBudget, BranchChatMessage, DisciplineBroadcast, InspectionTemplate, InspectorLiveLocation } from './src/types';
 
 // In-memory data store for server runtime state
 let usersStore: User[] = [...INITIAL_USERS];
@@ -30,6 +31,63 @@ let vouchersStore: FinancialVoucher[] = [...INITIAL_FINANCIAL_VOUCHERS];
 let branchBudgetsStore: BranchInspectionBudget[] = [...INITIAL_BRANCH_BUDGETS];
 let chatMessagesStore: BranchChatMessage[] = [...INITIAL_CHAT_MESSAGES];
 let broadcastsStore: DisciplineBroadcast[] = [...INITIAL_BROADCASTS];
+let templatesStore: InspectionTemplate[] = JSON.parse(JSON.stringify(INITIAL_INSPECTION_TEMPLATES));
+const inspectorLocations = new Map<string, InspectorLiveLocation>();
+const inspectorSseClients = new Set<Response>();
+const deviceHeartbeatAt = new Map<string, number>();
+
+function seedInspectorLocations() {
+  const inspectors = usersStore.filter((u) => u.role === 'FIELD_INSPECTOR');
+  inspectors.forEach((u, i) => {
+    const inProv = facilitiesStore.find((f) => f.provinceId === u.provinceId);
+    const fac = inProv || facilitiesStore[i % Math.max(facilitiesStore.length, 1)];
+    if (!fac) return;
+    inspectorLocations.set(u.id, {
+      inspectorId: u.id,
+      inspectorName: u.name,
+      role: u.role,
+      provinceId: u.provinceId,
+      latitude: Number(fac.latitude) + i * 0.004,
+      longitude: Number(fac.longitude) + i * 0.003,
+      isActive: true,
+      updatedAt: new Date().toISOString()
+    });
+  });
+}
+
+seedInspectorLocations();
+setInterval(() => {
+  const now = Date.now();
+  inspectorLocations.forEach((loc, id) => {
+    if (now - (deviceHeartbeatAt.get(id) || 0) < 90000) return;
+    inspectorLocations.set(id, { ...loc, updatedAt: new Date().toISOString() });
+  });
+  broadcastInspectorLocations();
+}, 40000);
+
+function broadcastInspectorLocations() {
+  const payload = `data: ${JSON.stringify(Array.from(inspectorLocations.values()))}\n\n`;
+  inspectorSseClients.forEach((client) => {
+    try {
+      client.write(payload);
+    } catch {
+      inspectorSseClients.delete(client);
+    }
+  });
+}
+
+const opsSseClients = new Set<Response>();
+
+function broadcastOps(event: string, data: unknown) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  opsSseClients.forEach((client) => {
+    try {
+      client.write(payload);
+    } catch {
+      opsSseClients.delete(client);
+    }
+  });
+}
 
 // Helper function: Haversine distance calculation in meters
 function calculateGpsDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -52,6 +110,7 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json({ limit: '15mb' }));
+  mobileApp.use(express.json({ limit: '15mb' }));
 
   // ==================== REST API ROUTES ====================
 
@@ -402,6 +461,7 @@ async function startServer() {
     facility.inspectionStatus = 'NEEDS_INSPECTION';
     facility.assignedInspectorId = inspector?.id;
 
+    broadcastOps('assignments', assignmentsStore);
     res.status(201).json(newAssignment);
   });
 
@@ -419,7 +479,9 @@ async function startServer() {
       violations,
       notes,
       photos,
-      recommendedAction
+      recommendedAction,
+      templateId,
+      answersJson
     } = req.body;
 
     const facility = facilitiesStore.find(f => f.id === facilityId);
@@ -461,7 +523,9 @@ async function startServer() {
       photos: Array.isArray(photos) ? photos : [],
       checkedNurseIds: Array.isArray(checkedNurseIds) ? checkedNurseIds : [],
       recommendedAction: recommendedAction || 'PASS',
-      status: 'SUBMITTED'
+      status: 'SUBMITTED',
+      templateId,
+      answersJson: answersJson && typeof answersJson === 'object' ? answersJson : undefined
     };
 
     reportsStore.unshift(report);
@@ -499,6 +563,9 @@ async function startServer() {
         assignment.status = 'COMPLETED';
       }
     }
+
+    broadcastOps('assignments', assignmentsStore);
+    broadcastOps('violations', violationsStore);
 
     res.status(201).json({
       success: true,
@@ -607,23 +674,46 @@ async function startServer() {
   });
 
   apiRouter.post('/chat/messages', (req: Request, res: Response) => {
-    const body = req.body;
+    const body = req.body || {};
     const newMsg: BranchChatMessage = {
       id: body.id || `msg_${Date.now()}`,
       channelId: body.channelId || 'general-ops',
       senderId: body.senderId || 'user_1',
       senderName: body.senderName || 'النقيب',
       senderRole: body.senderRole || 'HIGH_COMMAND',
+      senderRoleTitle: body.senderRoleTitle,
       senderBadge: body.senderBadge || 'INS-001',
       provinceId: body.provinceId,
       provinceName: body.provinceName,
       messageText: body.messageText || '',
       timestamp: body.timestamp || new Date().toISOString().replace('T', ' ').slice(0, 16),
       type: body.type || 'TEXT',
+      isNationwideBroadcast: Boolean(body.isNationwideBroadcast),
+      broadcastTarget: body.broadcastTarget,
       attachment: body.attachment
     };
-    chatMessagesStore.push(newMsg);
+    if (!chatMessagesStore.some((m) => m.id === newMsg.id)) {
+      chatMessagesStore.push(newMsg);
+    }
+    broadcastOps('chat', chatMessagesStore);
     res.status(201).json(newMsg);
+  });
+
+  apiRouter.get('/ops/stream', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    res.write(`event: chat\ndata: ${JSON.stringify(chatMessagesStore)}\n\n`);
+    res.write(`event: assignments\ndata: ${JSON.stringify(assignmentsStore)}\n\n`);
+    res.write(`event: violations\ndata: ${JSON.stringify(violationsStore)}\n\n`);
+    res.write(`event: broadcasts\ndata: ${JSON.stringify(broadcastsStore)}\n\n`);
+    opsSseClients.add(res);
+    req.on('close', () => opsSseClients.delete(res));
+  });
+
+  apiRouter.get('/inspections', (_req: Request, res: Response) => {
+    res.json(reportsStore);
   });
 
   // 12. Discipline Broadcasts & Urgent Circulars
@@ -647,7 +737,187 @@ async function startServer() {
       isActive: true
     };
     broadcastsStore.unshift(newBrd);
+    broadcastOps('broadcasts', broadcastsStore);
     res.status(201).json(newBrd);
+  });
+
+  apiRouter.get('/templates', (_req: Request, res: Response) => {
+    res.json(templatesStore);
+  });
+
+  apiRouter.get('/templates/active', (_req: Request, res: Response) => {
+    const active = templatesStore.find((t) => t.isActive) || templatesStore[0];
+    if (!active) return res.status(404).json({ error: 'لا يوجد قالب نشط' });
+    res.json(active);
+  });
+
+  apiRouter.post('/templates', (req: Request, res: Response) => {
+    const body = req.body || {};
+    const tpl: InspectionTemplate = {
+      id: body.id || `tpl_${Date.now()}`,
+      code: body.code || `TPL-${Date.now()}`,
+      nameAr: body.nameAr || 'قالب جديد',
+      nameEn: body.nameEn,
+      facilityType: body.facilityType || 'ALL',
+      schemaJson: body.schemaJson || { version: 1, categories: [] },
+      isActive: Boolean(body.isActive),
+      version: Number(body.version) || 1,
+      createdBy: body.createdBy,
+      createdAt: new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString().slice(0, 10)
+    };
+    if (tpl.isActive) {
+      templatesStore = templatesStore.map((t) => ({ ...t, isActive: false }));
+    }
+    templatesStore.unshift(tpl);
+    res.status(201).json(tpl);
+  });
+
+  apiRouter.put('/templates/:id', (req: Request, res: Response) => {
+    const idx = templatesStore.findIndex((t) => t.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'القالب غير موجود' });
+    const next = { ...templatesStore[idx], ...req.body, id: templatesStore[idx].id, updatedAt: new Date().toISOString().slice(0, 10) };
+    if (next.isActive) {
+      templatesStore = templatesStore.map((t, i) => (i === idx ? next : { ...t, isActive: false }));
+    } else {
+      templatesStore[idx] = next;
+    }
+    res.json(next);
+  });
+
+  apiRouter.post('/templates/:id/activate', (req: Request, res: Response) => {
+    templatesStore = templatesStore.map((t) => ({ ...t, isActive: t.id === req.params.id }));
+    const active = templatesStore.find((t) => t.id === req.params.id);
+    if (!active) return res.status(404).json({ error: 'القالب غير موجود' });
+    res.json(active);
+  });
+
+  apiRouter.delete('/templates/:id', (req: Request, res: Response) => {
+    templatesStore = templatesStore.filter((t) => t.id !== req.params.id);
+    res.json({ success: true });
+  });
+
+  apiRouter.get('/inspectors/locations', (_req: Request, res: Response) => {
+    res.json(Array.from(inspectorLocations.values()));
+  });
+
+  apiRouter.post('/inspectors/heartbeat', (req: Request, res: Response) => {
+    const body = req.body || {};
+    const inspectorId = body.inspectorId || body.inspector_id;
+    if (!inspectorId || body.latitude == null || body.longitude == null) {
+      return res.status(400).json({ error: 'inspectorId و latitude و longitude مطلوبة' });
+    }
+    const user = usersStore.find((u) => u.id === inspectorId);
+    const row: InspectorLiveLocation = {
+      inspectorId,
+      inspectorName: body.inspectorName || user?.name || 'مفتش ميداني',
+      role: user?.role,
+      provinceId: body.provinceId || user?.provinceId,
+      latitude: Number(body.latitude),
+      longitude: Number(body.longitude),
+      accuracyMeters: body.accuracyMeters,
+      isActive: body.isActive !== false,
+      updatedAt: new Date().toISOString()
+    };
+    inspectorLocations.set(inspectorId, row);
+    deviceHeartbeatAt.set(inspectorId, Date.now());
+    broadcastInspectorLocations();
+    res.json(row);
+  });
+
+  apiRouter.get('/inspectors/nearest', (req: Request, res: Response) => {
+    const facilityId = String(req.query.facilityId || '');
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const facility = facilitiesStore.find((f) => f.id === facilityId);
+    const targetLat = facility ? facility.latitude : lat;
+    const targetLng = facility ? facility.longitude : lng;
+    if (Number.isNaN(targetLat) || Number.isNaN(targetLng)) {
+      return res.status(400).json({ error: 'facilityId أو lat/lng مطلوبة' });
+    }
+    const cutoff = Date.now() - 2 * 60 * 1000;
+    const ranked = Array.from(inspectorLocations.values())
+      .filter((loc) => loc.isActive && new Date(loc.updatedAt).getTime() >= cutoff)
+      .map((loc) => ({
+        ...loc,
+        distanceMeters: Math.round(calculateGpsDistanceMeters(loc.latitude, loc.longitude, targetLat, targetLng))
+      }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    res.json({
+      target: { latitude: targetLat, longitude: targetLng, facilityId: facility?.id },
+      nearest: ranked[0] || null,
+      ranked,
+      method: 'haversine_fallback_equivalent_to_ST_Distance'
+    });
+  });
+
+  apiRouter.get('/inspectors/stream', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    res.write(`data: ${JSON.stringify(Array.from(inspectorLocations.values()))}\n\n`);
+    inspectorSseClients.add(res);
+    req.on('close', () => inspectorSseClients.delete(res));
+  });
+
+  apiRouter.post('/dispatch/nearest', (req: Request, res: Response) => {
+    const { facilityId, scheduledDate, priority, notes, assignedByUserId } = req.body || {};
+    const facility = facilitiesStore.find((f) => f.id === facilityId);
+    if (!facility) return res.status(404).json({ error: 'المنشأة غير موجودة' });
+
+    const cutoff = Date.now() - 2 * 60 * 1000;
+    const live = Array.from(inspectorLocations.values()).filter(
+      (loc) => loc.isActive && new Date(loc.updatedAt).getTime() >= cutoff
+    );
+
+    const ranked = live
+      .map((loc) => ({
+        loc,
+        distanceMeters: calculateGpsDistanceMeters(loc.latitude, loc.longitude, facility.latitude, facility.longitude)
+      }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    const nearest = ranked[0];
+    if (!nearest) {
+      return res.status(404).json({
+        error: 'لا يوجد مفتش نشط على الخريطة',
+        postgisEquivalent: `SELECT inspector_id, ST_Distance(geom, ST_SetSRID(ST_MakePoint(${facility.longitude}, ${facility.latitude}), 4326)::geography) AS distance_m FROM inspector_locations WHERE is_active AND updated_at > NOW() - INTERVAL '2 minutes' ORDER BY geom <-> ST_SetSRID(ST_MakePoint(${facility.longitude}, ${facility.latitude}), 4326)::geography LIMIT 1`
+      });
+    }
+
+    const inspector = usersStore.find((u) => u.id === nearest.loc.inspectorId);
+    const commander = usersStore.find((u) => u.id === assignedByUserId) || usersStore[0];
+    const newAssignment: InspectionAssignment = {
+      id: `asg_${Date.now()}`,
+      assignmentCode: `ASN-${new Date().getFullYear()}-${String(assignmentsStore.length + 1).padStart(4, '0')}`,
+      facilityId: facility.id,
+      facilityName: facility.name,
+      facilityAddress: `${facility.neighborhood} - ${facility.addressDetail}`,
+      facilityLat: facility.latitude,
+      facilityLng: facility.longitude,
+      assignedInspectorId: nearest.loc.inspectorId,
+      assignedInspectorName: nearest.loc.inspectorName,
+      assignedByUserId: commander?.id || 'hq',
+      assignedByUserName: commander?.name || 'المقر العام',
+      scheduledDate: scheduledDate || new Date().toISOString().slice(0, 10),
+      priority: (priority as PriorityLevel) || 'URGENT',
+      status: 'PENDING',
+      notes: notes || `إيفاد جغرافي لأقرب مفتش نشط (حوالي ${nearest.distanceMeters} م)`,
+      createdAt: new Date().toISOString()
+    };
+    assignmentsStore.unshift(newAssignment);
+    facility.inspectionStatus = 'NEEDS_INSPECTION';
+    facility.assignedInspectorId = nearest.loc.inspectorId;
+    broadcastOps('assignments', assignmentsStore);
+
+    res.status(201).json({
+      assignment: newAssignment,
+      nearestInspector: nearest.loc,
+      distanceMeters: nearest.distanceMeters,
+      inspectorRole: inspector?.role,
+      method: 'haversine_fallback_equivalent_to_ST_Distance'
+    });
   });
 
   app.use('/api', apiRouter);

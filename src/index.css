@@ -26,109 +26,131 @@
      7 CALM CLINICAL & MEDICAL THEME VARIABLES (ANTI-AI SLOP)
      ------------------------------------------------------------- */
   /* 1. السمائي السريري الهادئ (Clinical Sky & Mist) */
-  :root,
-  [data-theme="medical-sky"] {
-    --theme-canvas: #f0f6fb;
+  :root {
+    --theme-canvas: #b7cce6;
     --theme-card-bg: #ffffff;
-    --theme-card-border: #d7e7f6;
-    --theme-text-primary: #0f2942;
-    --theme-text-muted: #53708c;
-    --theme-sidebar-bg: #0c233a;
-    --theme-sidebar-border: #163857;
+    --theme-card-border: #7ea3c9;
+    --theme-text-primary: #061427;
+    --theme-text-muted: #3d5873;
+    --theme-sidebar-bg: #061e3d;
+    --theme-sidebar-border: #0a3a6e;
     --theme-header-bg: #ffffff;
-    --theme-header-border: #dbeafe;
-    --theme-primary: #0284c7;
-    --theme-accent: #f59e0b;
+    --theme-header-border: #7ea3c9;
+    --theme-primary: #0a4f96;
+    --theme-accent: #c9a227;
+    --theme-on-primary: #ffffff;
+    --theme-on-accent: #1a1206;
+  }
+
+  html[data-theme="medical-sky"],
+  [data-theme="medical-sky"] {
+    --theme-canvas: #b7cce6;
+    --theme-card-bg: #ffffff;
+    --theme-card-border: #7ea3c9;
+    --theme-text-primary: #061427;
+    --theme-text-muted: #3d5873;
+    --theme-sidebar-bg: #061e3d;
+    --theme-sidebar-border: #0a3a6e;
+    --theme-header-bg: #ffffff;
+    --theme-header-border: #7ea3c9;
+    --theme-primary: #0a4f96;
+    --theme-accent: #c9a227;
   }
 
   /* 2. الأزرق الطبي الوقائي (Serene Medical Blue) */
+  html[data-theme="clinical-blue"],
   [data-theme="clinical-blue"] {
-    --theme-canvas: #f3f7fc;
+    --theme-canvas: #9eb6e8;
     --theme-card-bg: #ffffff;
-    --theme-card-border: #d9e6f5;
-    --theme-text-primary: #102238;
-    --theme-text-muted: #4e6785;
-    --theme-sidebar-bg: #0b1c36;
-    --theme-sidebar-border: #17355c;
+    --theme-card-border: #5b86d6;
+    --theme-text-primary: #07122a;
+    --theme-text-muted: #334e7a;
+    --theme-sidebar-bg: #04122b;
+    --theme-sidebar-border: #1e3a8a;
     --theme-header-bg: #ffffff;
-    --theme-header-border: #dbeafe;
-    --theme-primary: #2563eb;
-    --theme-accent: #eab308;
+    --theme-header-border: #5b86d6;
+    --theme-primary: #1d4ed8;
+    --theme-accent: #d4a017;
   }
 
   /* 3. الأبيض الطبي المعقم (Sterilized Clinic White) */
+  html[data-theme="pure-white"],
   [data-theme="pure-white"] {
-    --theme-canvas: #f8fafc;
+    --theme-canvas: #f3f4f6;
     --theme-card-bg: #ffffff;
-    --theme-card-border: #e2e8f0;
-    --theme-text-primary: #0f172a;
-    --theme-text-muted: #64748b;
-    --theme-sidebar-bg: #0f172a;
-    --theme-sidebar-border: #1e293b;
+    --theme-card-border: #9ca3af;
+    --theme-text-primary: #111827;
+    --theme-text-muted: #4b5563;
+    --theme-sidebar-bg: #111827;
+    --theme-sidebar-border: #1f2937;
     --theme-header-bg: #ffffff;
-    --theme-header-border: #e2e8f0;
-    --theme-primary: #0d9488;
-    --theme-accent: #eab308;
+    --theme-header-border: #9ca3af;
+    --theme-primary: #0f766e;
+    --theme-accent: #b45309;
   }
 
   /* 4. الزمردي الصحي المريح (Healing Mint & Sage) */
+  html[data-theme="soft-mint"],
   [data-theme="soft-mint"] {
-    --theme-canvas: #f1f7f4;
+    --theme-canvas: #d6ece4;
     --theme-card-bg: #ffffff;
-    --theme-card-border: #d0fae5;
-    --theme-text-primary: #0e271f;
-    --theme-text-muted: #477062;
-    --theme-sidebar-bg: #082119;
-    --theme-sidebar-border: #134234;
+    --theme-card-border: #3d9a5c;
+    --theme-text-primary: #052e16;
+    --theme-text-muted: #3f6b4c;
+    --theme-sidebar-bg: #052e16;
+    --theme-sidebar-border: #14532d;
     --theme-header-bg: #ffffff;
-    --theme-header-border: #d1fae5;
-    --theme-primary: #059669;
-    --theme-accent: #d97706;
+    --theme-header-border: #3d9a5c;
+    --theme-primary: #15803d;
+    --theme-accent: #c9a227;
   }
 
   /* 5. العاجي والعنبري الطبي (Warm Ivory & Clinical Amber) */
+  html[data-theme="warm-amber"],
   [data-theme="warm-amber"] {
-    --theme-canvas: #fcf9f4;
-    --theme-card-bg: #ffffff;
-    --theme-card-border: #fed7aa;
-    --theme-text-primary: #2b2118;
-    --theme-text-muted: #796654;
-    --theme-sidebar-bg: #1c1814;
-    --theme-sidebar-border: #382f27;
-    --theme-header-bg: #ffffff;
-    --theme-header-border: #fed7aa;
-    --theme-primary: #d97706;
-    --theme-accent: #0284c7;
+    --theme-canvas: #e6c98a;
+    --theme-card-bg: #fffdf8;
+    --theme-card-border: #c9a227;
+    --theme-text-primary: #1c1308;
+    --theme-text-muted: #6b5428;
+    --theme-sidebar-bg: #1a1206;
+    --theme-sidebar-border: #5c430d;
+    --theme-header-bg: #fffdf8;
+    --theme-header-border: #c9a227;
+    --theme-primary: #b45309;
+    --theme-accent: #0a4f96;
   }
 
   /* 6. الرمادي واللؤلؤي الباستيل (Muted Slate & Pearl) */
+  html[data-theme="slate-pearl"],
   [data-theme="slate-pearl"] {
-    --theme-canvas: #f0f3f7;
+    --theme-canvas: #c5ccd6;
     --theme-card-bg: #ffffff;
-    --theme-card-border: #e2e8f0;
-    --theme-text-primary: #1e293b;
-    --theme-text-muted: #64748b;
-    --theme-sidebar-bg: #16202e;
-    --theme-sidebar-border: #26364a;
+    --theme-card-border: #64748b;
+    --theme-text-primary: #0f172a;
+    --theme-text-muted: #475569;
+    --theme-sidebar-bg: #0b1220;
+    --theme-sidebar-border: #334155;
     --theme-header-bg: #ffffff;
-    --theme-header-border: #e2e8f0;
-    --theme-primary: #475569;
-    --theme-accent: #38bdf8;
+    --theme-header-border: #64748b;
+    --theme-primary: #1e293b;
+    --theme-accent: #c9a227;
   }
 
   /* 7. النمط الليلي الرقابي الهادئ (Muted Syndicate Night - التصميم الأصلي) */
+  html[data-theme="executive-night"],
   [data-theme="executive-night"] {
-    --theme-canvas: #030712;
-    --theme-card-bg: #091122;
-    --theme-card-border: #1e293b;
+    --theme-canvas: #020617;
+    --theme-card-bg: #0a1224;
+    --theme-card-border: #1e3a5f;
     --theme-text-primary: #f8fafc;
     --theme-text-muted: #94a3b8;
-    --theme-sidebar-bg: #091122;
-    --theme-sidebar-border: #1e293b;
-    --theme-header-bg: #070e1d;
-    --theme-header-border: #1e293b;
-    --theme-primary: #f59e0b;
-    --theme-accent: #38bdf8;
+    --theme-sidebar-bg: #020617;
+    --theme-sidebar-border: #c9a227;
+    --theme-header-bg: #020617;
+    --theme-header-border: #1e3a5f;
+    --theme-primary: #e8b923;
+    --theme-accent: #22d3ee;
   }
 
   body.dir-rtl {
@@ -246,13 +268,13 @@ html:not(.dark) [class*="border-slate-300"]:not(#official-sidebar):not(#official
 }
 
 /* Headings & High-Contrast Titles */
-html:not(.dark) h1:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) h2:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) h3:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) h4:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) th:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) b:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *),
-html:not(.dark) strong:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *) {
+html:not(.dark) h1:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) h2:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) h3:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) h4:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) th:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) b:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *),
+html:not(.dark) strong:not(#official-sidebar *):not(#pwa-mobile-frame *):not(#theme-selector-popover-panel *):not(#branch-network-grid *):not(#branch-network-workspace *) {
   color: var(--theme-text-primary, #0f2942) !important;
 }
 
@@ -454,75 +476,246 @@ html:not(.dark) #expiry-collapsed-teaser {
 
 
 
-/* MOBILE APP DYNAMIC THEME OVERRIDES */
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container {
+/* خلفية الجهاز خارج إطار التطبيق تبقى ثابتة؛ الثيم داخل #pwa-mobile-frame فقط */
+html[data-app="inspector"],
+html:has(body[data-app="inspector"]),
+html[data-app="inspector"] body,
+html:has(body[data-app="inspector"]) body,
+body[data-app="inspector"],
+body[data-app="inspector"].light-mode-body,
+body[data-app="inspector"].dark-mode-body,
+html:has(body[data-app="inspector"]) body.light-mode-body,
+html:has(body[data-app="inspector"]) body.dark-mode-body,
+html[data-app="inspector"] #root,
+body[data-app="inspector"] #root {
+  background-color: #0b1220 !important;
+  background-image: none !important;
+  color: #e2e8f0 !important;
+}
+
+#field-inspector-pwa-container {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+#pwa-mobile-frame {
   background: var(--theme-canvas) !important;
   color: var(--theme-text-primary) !important;
+  border-color: var(--theme-card-border) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-gradient-to-br {
-  background: var(--theme-canvas) !important;
+
+#pwa-mobile-frame > header {
+  background-color: var(--theme-sidebar-bg) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-sidebar-border) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950\/80,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-950\/90,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-900\/40,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800\/40,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-900 {
-  background-color: var(--theme-card-bg) !important;
+
+#pwa-mobile-frame > header h1,
+#pwa-mobile-frame > header [class*="text-white"] {
+  color: #ffffff !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-100,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-200 {
+
+#pwa-inspector-identity-strip {
+  background: color-mix(in srgb, var(--theme-primary) 22%, var(--theme-card-bg)) !important;
   color: var(--theme-text-primary) !important;
+  border-color: var(--theme-primary) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-300,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-slate-400 {
+
+#pwa-bottom-nav {
+  background: var(--theme-card-bg) !important;
+  border-color: var(--theme-card-border) !important;
   color: var(--theme-text-muted) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .border-white\/10,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .border-white\/5 {
-  border-color: var(--theme-card-border) !important;
+
+#pwa-mobile-frame > header p {
+  color: var(--theme-accent) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .text-white {
+
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown):not([class*="neon-glow"]),
+#pwa-mobile-frame [class*="bg-slate-9"]:not([class*="neon-glow"]),
+#pwa-mobile-frame [class*="bg-slate-8"]:not([class*="neon-glow"]),
+#pwa-mobile-frame [class*="bg-[#"]:not([class*="neon-glow"]) {
+  background-color: var(--theme-panel-bg) !important;
+  color: var(--theme-panel-text) !important;
+  border-color: var(--theme-panel-border) !important;
+}
+
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown) [class*="text-white"],
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown) [class*="text-slate-"],
+#pwa-mobile-frame [class*="bg-slate-9"] [class*="text-white"],
+#pwa-mobile-frame [class*="bg-slate-9"] [class*="text-slate-"],
+#pwa-mobile-frame [class*="bg-slate-8"] [class*="text-white"],
+#pwa-mobile-frame [class*="bg-slate-8"] [class*="text-slate-"],
+#pwa-mobile-frame [class*="bg-[#"] [class*="text-white"],
+#pwa-mobile-frame [class*="bg-[#"] [class*="text-slate-"] {
+  color: var(--theme-panel-text) !important;
+}
+
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown) [class*="text-slate-3"],
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown) [class*="text-slate-4"],
+#pwa-mobile-frame .bg-white:not(#pwa-account-dropdown) [class*="text-slate-5"],
+#pwa-mobile-frame [class*="bg-slate-9"] [class*="text-slate-3"],
+#pwa-mobile-frame [class*="bg-slate-9"] [class*="text-slate-4"],
+#pwa-mobile-frame [class*="bg-slate-8"] [class*="text-slate-3"],
+#pwa-mobile-frame [class*="bg-slate-8"] [class*="text-slate-4"],
+#pwa-mobile-frame [class*="bg-[#"] [class*="text-slate-3"],
+#pwa-mobile-frame [class*="bg-[#"] [class*="text-slate-4"] {
+  color: var(--theme-panel-muted) !important;
+}
+
+#pwa-mobile-frame > header .bg-white {
+  background-color: #ffffff !important;
+  color: inherit !important;
+}
+#pwa-mobile-frame [class*="border-white/"],
+#pwa-mobile-frame [class*="border-slate-"] {
+  border-color: var(--theme-panel-border) !important;
+}
+
+#pwa-mobile-frame > header [class*="text-white"],
+#pwa-mobile-frame > header h1 {
+  color: #ffffff !important;
+}
+
+#pwa-mobile-frame #pwa-back-btn,
+#pwa-mobile-frame #pwa-back-btn span,
+#pwa-mobile-frame #pwa-back-btn svg {
+  color: var(--theme-on-primary, #ffffff) !important;
+}
+
+#pwa-mobile-frame [class*="text-emerald-"],
+#pwa-mobile-frame [class*="text-teal-"],
+#pwa-mobile-frame [class*="text-sky-"],
+#pwa-mobile-frame [class*="text-cyan-"],
+#pwa-mobile-frame [class*="text-blue-3"],
+#pwa-mobile-frame [class*="text-blue-4"],
+#pwa-mobile-frame [class*="text-indigo-3"] {
+  color: var(--theme-panel-link) !important;
+}
+
+#pwa-mobile-frame [class*="text-amber-"],
+#pwa-mobile-frame [class*="text-yellow-"],
+#pwa-mobile-frame [class*="text-orange-"] {
+  color: var(--theme-panel-accent) !important;
+}
+
+#pwa-mobile-frame [class*="text-rose-"],
+#pwa-mobile-frame [class*="text-red-"] {
+  color: #fecaca !important;
+}
+
+#pwa-mobile-frame > header p {
+  color: var(--theme-panel-accent) !important;
+}
+
+#pwa-inspector-identity-strip,
+#pwa-inspector-identity-strip span,
+#pwa-inspector-identity-strip svg {
   color: var(--theme-text-primary) !important;
 }
-/* Ensure buttons and badges with strong backgrounds keep their white text */
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-500,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-500,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-red-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-amber-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-indigo-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-blue-600,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800 {
-  color: #ffffff !important;
+
+#pwa-inspector-identity-strip #pwa-back-btn,
+#pwa-inspector-identity-strip #pwa-back-btn span,
+#pwa-inspector-identity-strip #pwa-back-btn svg {
+  color: var(--theme-on-primary, #ffffff) !important;
 }
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-600 .text-white,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-emerald-500 .text-white,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-rose-600 .text-white,
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-slate-800 .text-white {
-  color: #ffffff !important;
+
+#pwa-bottom-nav {
+  color: var(--theme-text-muted) !important;
 }
-/* Update the top header to not be pitch black in light mode */
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container .bg-\[\#0a1628\]\/85 {
-  background-color: var(--theme-card-bg) !important;
-}
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-[#0"],
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-[#1"] {
-  background-color: var(--theme-card-bg) !important;
-}
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="hover:bg-[#1"]:hover {
-  background-color: var(--theme-canvas) !important;
-}
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-slate-9"],
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="bg-slate-8"] {
-  background-color: var(--theme-card-bg) !important;
-}
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container div[class*="bg-slate-9"],
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container div[class*="bg-slate-8"] {
-  background-color: var(--theme-card-bg) !important;
-}
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="border-white\/1"],
-body[data-theme]:not([data-theme="executive-night"]) #field-inspector-pwa-container [class*="border-white\/2"] {
+
+#pwa-mobile-frame #pwa-account-dropdown {
+  background: #ffffff !important;
+  color: #0f172a !important;
   border-color: var(--theme-card-border) !important;
 }
+
+#pwa-mobile-frame #pwa-account-dropdown [class*="text-slate"],
+#pwa-mobile-frame #pwa-account-dropdown span,
+#pwa-mobile-frame #pwa-account-dropdown strong {
+  color: #1e293b !important;
+}
+
+#pwa-mobile-frame [class*="bg-emerald-950"],
+#pwa-mobile-frame [class*="bg-emerald-900"],
+#pwa-mobile-frame [class*="bg-teal-950"],
+#pwa-mobile-frame [class*="bg-sky-950"],
+#pwa-mobile-frame [class*="bg-cyan-950"],
+#pwa-mobile-frame [class*="bg-emerald-50"],
+#pwa-mobile-frame [class*="bg-sky-50"] {
+  background-color: color-mix(in srgb, var(--theme-panel-link) 18%, var(--theme-panel-bg)) !important;
+  color: var(--theme-panel-link) !important;
+}
+
+#pwa-mobile-frame [class*="bg-emerald-5"],
+#pwa-mobile-frame [class*="bg-emerald-6"],
+#pwa-mobile-frame [class*="bg-emerald-7"],
+#pwa-mobile-frame [class*="bg-emerald-8"],
+#pwa-mobile-frame [class*="bg-teal-5"],
+#pwa-mobile-frame [class*="bg-teal-6"],
+#pwa-mobile-frame [class*="bg-teal-7"] {
+  background-color: var(--theme-primary) !important;
+  color: var(--theme-on-primary, #ffffff) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+#pwa-mobile-frame [class*="from-emerald"],
+#pwa-mobile-frame [class*="from-teal"],
+#pwa-mobile-frame [class*="from-sky"],
+#pwa-mobile-frame [class*="from-amber"],
+#pwa-mobile-frame [class*="to-emerald"],
+#pwa-mobile-frame [class*="to-teal"],
+#pwa-mobile-frame [class*="to-sky"],
+#pwa-mobile-frame [class*="to-amber"] {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--theme-panel-link) 28%, var(--theme-panel-bg)),
+    color-mix(in srgb, var(--theme-panel-bg) 88%, black)
+  ) !important;
+  color: var(--theme-panel-text) !important;
+  border-color: var(--theme-panel-border) !important;
+}
+
+#pwa-mobile-frame input,
+#pwa-mobile-frame select,
+#pwa-mobile-frame textarea {
+  background: color-mix(in srgb, var(--theme-panel-bg) 82%, white) !important;
+  color: var(--theme-panel-text) !important;
+  border-color: var(--theme-panel-border) !important;
+}
+
+#pwa-mobile-frame input::placeholder {
+  color: var(--theme-panel-muted) !important;
+}
+
+#dynamic-inspection-form [class*="bg-slate"],
+#dynamic-inspection-form [class*="bg-[#"] {
+  background: var(--theme-panel-bg) !important;
+  border-color: var(--theme-panel-border) !important;
+  color: var(--theme-panel-text) !important;
+}
+
+#dynamic-inspection-form h4,
+#dynamic-inspection-form h5,
+#dynamic-inspection-form p,
+#dynamic-inspection-form strong,
+#dynamic-inspection-form label,
+#dynamic-inspection-form span {
+  color: var(--theme-panel-text) !important;
+}
+
+#pwa-mobile-frame[data-theme="medical-sky"] { background: #6b93c4 !important; }
+#pwa-mobile-frame[data-theme="medical-sky"] > header { background-color: #061e3d !important; }
+#pwa-mobile-frame[data-theme="clinical-blue"] { background: #4a6fd0 !important; }
+#pwa-mobile-frame[data-theme="clinical-blue"] > header { background-color: #04122b !important; }
+#pwa-mobile-frame[data-theme="pure-white"] { background: #d1d5db !important; }
+#pwa-mobile-frame[data-theme="pure-white"] > header { background-color: #111827 !important; }
+#pwa-mobile-frame[data-theme="soft-mint"] { background: #5fa87a !important; }
+#pwa-mobile-frame[data-theme="soft-mint"] > header { background-color: #052e16 !important; }
+#pwa-mobile-frame[data-theme="warm-amber"] { background: #c9922a !important; }
+#pwa-mobile-frame[data-theme="warm-amber"] > header { background-color: #1a1206 !important; }
+#pwa-mobile-frame[data-theme="slate-pearl"] { background: #6b7688 !important; }
+#pwa-mobile-frame[data-theme="slate-pearl"] > header { background-color: #0b1220 !important; }
+#pwa-mobile-frame[data-theme="executive-night"] { background: #020617 !important; }
+#pwa-mobile-frame[data-theme="executive-night"] > header { background-color: #020617 !important; }
+

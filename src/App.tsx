@@ -11,10 +11,15 @@ import { DashboardStats } from './components/DashboardStats';
 import { UsersManagement } from './components/UsersManagement';
 import { FinancialInspectionSection } from './components/FinancialInspectionSection';
 import { BranchOperationsChat } from './components/BranchOperationsChat';
+import { BranchNetwork } from './components/BranchNetwork';
 
-import { User, Facility, Province, DistrictZone, NurseStaff, InspectionAssignment, ViolationRecord, ViolationType, PenaltySeverity, SystemStats, CustomInspectionZone, InspectionCommittee, FinancialVoucher, BranchInspectionBudget, BranchChatMessage, DisciplineBroadcast } from './types';
+import { User, Facility, Province, DistrictZone, NurseStaff, InspectionAssignment, ViolationRecord, ViolationType, PenaltySeverity, SystemStats, CustomInspectionZone, InspectionCommittee, FinancialVoucher, BranchInspectionBudget, BranchChatMessage, DisciplineBroadcast, InspectionTemplate } from './types';
 import { INITIAL_USERS, INITIAL_PROVINCES, INITIAL_DISTRICT_ZONES, INITIAL_FACILITIES, INITIAL_NURSES, INITIAL_ASSIGNMENTS, INITIAL_VIOLATIONS, MOCK_SYSTEM_STATS, INITIAL_CUSTOM_ZONES, INITIAL_COMMITTEES, INITIAL_FINANCIAL_VOUCHERS, INITIAL_BRANCH_BUDGETS, INITIAL_CHAT_MESSAGES, INITIAL_BROADCASTS } from './data/initialData';
 import { ZoneManager } from './components/ZoneManager';
+import { InspectionTemplateBuilder } from './components/InspectionTemplateBuilder';
+import { useLiveInspectors } from './hooks/useLiveInspectors';
+import { registerInspectorOfflineRuntime } from './offline/registerOffline';
+import { INITIAL_INSPECTION_TEMPLATES } from './data/inspectionTemplates';
 import { Shield, Plus, Building2, MapPin, CheckCircle2, Smartphone, ExternalLink, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLanguageTheme } from './context/LanguageThemeContext';
 
@@ -24,6 +29,18 @@ export interface AppProps {
 
 export default function App({ isMobileOnly = false }: AppProps) {
   const { lang, theme, t } = useLanguageTheme();
+  const liveInspectors = useLiveInspectors(true);
+  const [inspectionTemplates, setInspectionTemplates] = useState<InspectionTemplate[]>(INITIAL_INSPECTION_TEMPLATES);
+
+  useEffect(() => {
+    registerInspectorOfflineRuntime();
+    fetch('/api/templates')
+      .then((r) => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows) && rows.length) setInspectionTemplates(rows);
+      })
+      .catch(() => undefined);
+  }, []);
   const [inspectorZoom, setInspectorZoom] = useState<number>(100);
   const [inspectorDeviceWidth, setInspectorDeviceWidth] = useState<'compact' | 'standard' | 'tablet' | 'full'>('standard');
 
@@ -172,7 +189,14 @@ export default function App({ isMobileOnly = false }: AppProps) {
 
  fetch('/api/facilities')
  .then(res => res.json())
- .then(data => { if (Array.isArray(data)) setFacilities(data); })
+ .then(data => {
+ if (!Array.isArray(data)) return;
+ const byId = new Map(data.map((f: Facility) => [f.id, f]));
+ INITIAL_FACILITIES.forEach((seed) => {
+ if (!byId.has(seed.id)) data.push(seed);
+ });
+ setFacilities(data);
+ })
  .catch(err => console.log('API fallback to initial data'));
 
  fetch('/api/assignments')
@@ -189,6 +213,43 @@ export default function App({ isMobileOnly = false }: AppProps) {
  .then(res => res.json())
  .then(data => { if (data.totalFacilities) setStats(data); })
  .catch(err => console.log('API fallback'));
+
+ fetch('/api/chat/messages')
+ .then((res) => res.json())
+ .then((data) => { if (Array.isArray(data) && data.length) setChatMessages(data); })
+ .catch(() => undefined);
+
+ fetch('/api/broadcasts')
+ .then((res) => res.json())
+ .then((data) => { if (Array.isArray(data) && data.length) setBroadcasts(data); })
+ .catch(() => undefined);
+
+ const applyJson = (setter: (rows: any[]) => void) => (ev: MessageEvent) => {
+   try {
+     const rows = JSON.parse(ev.data);
+     if (Array.isArray(rows)) setter(rows);
+   } catch {
+     /* ignore */
+   }
+ };
+
+ const ops = new EventSource('/api/ops/stream');
+ ops.addEventListener('chat', applyJson(setChatMessages));
+ ops.addEventListener('assignments', applyJson(setAssignments));
+ ops.addEventListener('violations', applyJson(setViolations));
+ ops.addEventListener('broadcasts', applyJson(setBroadcasts));
+ ops.addEventListener('facilities', applyJson(setFacilities));
+
+ const poll = window.setInterval(() => {
+   fetch('/api/chat/messages').then((r) => r.json()).then((d) => { if (Array.isArray(d)) setChatMessages(d); }).catch(() => undefined);
+   fetch('/api/assignments').then((r) => r.json()).then((d) => { if (Array.isArray(d)) setAssignments(d); }).catch(() => undefined);
+   fetch('/api/violations').then((r) => r.json()).then((d) => { if (Array.isArray(d)) setViolations(d); }).catch(() => undefined);
+ }, 5000);
+
+ return () => {
+   window.clearInterval(poll);
+   ops.close();
+ };
  }, []);
 
  // Handlers
@@ -214,9 +275,9 @@ export default function App({ isMobileOnly = false }: AppProps) {
  facilityLat: fac ? fac.latitude : 33.315,
  facilityLng: fac ? fac.longitude : 44.351,
  assignedInspectorId: newAssignmentData.assignedInspectorId,
- assignedInspectorName: 'علي حسين الكعبي',
- assignedByUserId: currentUser.id,
- assignedByUserName: currentUser.name,
+ assignedInspectorName: users.find(u => u.id === newAssignmentData.assignedInspectorId)?.name || 'مفتش ميداني',
+ assignedByUserId: currentUser?.id || 'user_1',
+ assignedByUserName: currentUser?.name || 'غرفة العمليات',
  scheduledDate: newAssignmentData.scheduledDate,
  priority: newAssignmentData.priority,
  status: 'PENDING',
@@ -229,6 +290,36 @@ export default function App({ isMobileOnly = false }: AppProps) {
  console.error(e);
  }
  };
+
+ const handleDispatchNearest = async (facility: Facility) => {
+   const res = await fetch('/api/dispatch/nearest', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       facilityId: facility.id,
+       assignedByUserId: currentUser?.id,
+       priority: 'URGENT'
+     })
+   });
+   const data = await res.json();
+   if (!res.ok) throw new Error(data.error || 'تعذر إيجاد مفتش نشط');
+   if (data.assignment) setAssignments((prev) => [data.assignment, ...prev]);
+ };
+
+ const saveInspectionTemplate = async (template: InspectionTemplate) => {
+   const exists = inspectionTemplates.some((t) => t.id === template.id);
+   const res = await fetch(exists ? `/api/templates/${template.id}` : '/api/templates', {
+     method: exists ? 'PUT' : 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify(template)
+   });
+   const saved = await res.json();
+   setInspectionTemplates((prev) => {
+     const rest = prev.filter((t) => t.id !== saved.id);
+     return [saved, ...rest];
+   });
+ };
+
 
  const handleSubmitInspectionReport = async (reportData: any) => {
  const todayStr = new Date().toISOString().split('T')[0];
@@ -511,10 +602,16 @@ export default function App({ isMobileOnly = false }: AppProps) {
 
  const handleSendMessage = (newMsg: BranchChatMessage) => {
  setChatMessages(prev => {
- const next = [...prev, newMsg];
+ const exists = prev.some((m) => m.id === newMsg.id);
+ const next = exists ? prev : [...prev, newMsg];
  localStorage.setItem('syndicate_chat_messages', JSON.stringify(next));
  return next;
  });
+ fetch('/api/chat/messages', {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify(newMsg)
+ }).catch(() => undefined);
  };
 
  const handleAddBroadcast = (newBrd: DisciplineBroadcast) => {
@@ -523,6 +620,11 @@ export default function App({ isMobileOnly = false }: AppProps) {
  localStorage.setItem('syndicate_broadcasts', JSON.stringify(next));
  return next;
  });
+ fetch('/api/broadcasts', {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify(newBrd)
+ }).catch(() => undefined);
  };
 
  const pendingAssignmentsCount = assignments.filter(a => a.status === 'PENDING').length;
@@ -556,7 +658,7 @@ export default function App({ isMobileOnly = false }: AppProps) {
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#060e1a] via-[#08162b] to-[#040a14] text-slate-100 w-full overflow-hidden flex justify-center">
+      <div className="min-h-screen bg-[#0b1220] text-slate-100 w-full overflow-hidden flex justify-center">
         <FieldInspectorMobile
           isStandalone={true}
           currentUser={currentUser}
@@ -626,19 +728,46 @@ export default function App({ isMobileOnly = false }: AppProps) {
  facilities={facilities}
  provinces={provinces}
  zones={zones}
+ inspectors={users.filter(u => u.role === 'FIELD_INSPECTOR')}
+ currentUser={currentUser}
  onSelectFacility={(fac) => {
  setSelectedFacility(fac);
- setActiveTab('facilities');
  }}
- onNewAssignmentRequested={(fac) => {
- setPreselectedFacilityForTask(fac);
- setActiveTab('assignments');
- }}
+ onCreateAssignment={handleCreateAssignment}
  onAddFacilityModalOpen={() => setIsAddFacilityModalOpen(true)}
+ liveInspectors={liveInspectors}
+ onDispatchNearest={handleDispatchNearest}
+ />
+ )}
+
+ {activeTab === 'branch_network' && (
+ <BranchNetwork
+ facilities={facilities}
+ assignments={assignments}
+ violations={violations}
+ vouchers={vouchers}
+ users={users}
+ zones={zones}
  />
  )}
 
  {/* Tab 2.5: Zone & Committee Management */}
+ {activeTab === 'form_engine' && (
+   <InspectionTemplateBuilder
+     templates={inspectionTemplates}
+     onSave={saveInspectionTemplate}
+     onActivate={async (id) => {
+       const res = await fetch(`/api/templates/${id}/activate`, { method: 'POST' });
+       if (!res.ok) return;
+       setInspectionTemplates((prev) => prev.map((t) => ({ ...t, isActive: t.id === id })));
+     }}
+     onDelete={async (id) => {
+       await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+       setInspectionTemplates((prev) => prev.filter((t) => t.id !== id));
+     }}
+   />
+ )}
+
  {activeTab === 'zone_manager' && (
  <ZoneManager
  customZones={customZones}
@@ -996,6 +1125,7 @@ export default function App({ isMobileOnly = false }: AppProps) {
  className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-card-border)] rounded-xl p-2.5 font-bold"
  >
  <option value="CLINIC">عيادة تمريضية/ضماد</option>
+ <option value="MIDWIFE_CLINIC">عيادة قابلات</option>
  <option value="HOSPITAL">مستشفى أهلي</option>
  <option value="NURSING_CENTER">مركز رعاية تمريضية</option>
  </select>

@@ -76,7 +76,7 @@ export interface CustomInspectionZone {
   createdDate: string;
 }
 
-export type FacilityType = 'CLINIC' | 'HOSPITAL' | 'NURSING_CENTER' | 'LAB_CENTER';
+export type FacilityType = 'CLINIC' | 'MIDWIFE_CLINIC' | 'HOSPITAL' | 'NURSING_CENTER' | 'LAB_CENTER';
 export type LicenseStatus = 'LICENSED' | 'PENDING' | 'EXPIRED' | 'SUSPENDED' | 'UNLICENSED';
 
 export interface Facility {
@@ -211,6 +211,8 @@ export interface InspectionReport {
   // Decision
   recommendedAction: 'PASS' | 'WARNING_ISSUED' | 'FINE_RECOMMENDED' | 'REFERRAL_TO_INVESTIGATION';
   status: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  templateId?: string;
+  answersJson?: Record<string, unknown>;
 }
 
 export interface SystemStats {
@@ -308,5 +310,83 @@ export interface DisciplineBroadcast {
   issueDate: string;
   actionRequired: string;
   isActive: boolean;
+}
+
+export type InspectionInputType = 'PASS_FAIL' | 'TOGGLE' | 'RADIO' | 'TEXTAREA' | 'NUMBER';
+export type PassFailValue = 'PASS' | 'FAIL' | 'NA';
+
+export interface InspectionQuestionBranch {
+  when: PassFailValue | 'true' | 'false' | string;
+  showQuestionIds: string[];
+}
+
+export interface InspectionQuestionSchema {
+  id: string;
+  titleAr: string;
+  titleEn?: string;
+  helpAr?: string;
+  inputType: InspectionInputType;
+  weight: number;
+  required: boolean;
+  options?: { value: string; labelAr: string }[];
+  branchOn?: InspectionQuestionBranch;
+}
+
+export interface InspectionCategorySchema {
+  id: string;
+  titleAr: string;
+  titleEn?: string;
+  sortOrder: number;
+  questions: InspectionQuestionSchema[];
+}
+
+export interface InspectionFormSchema {
+  version: number;
+  categories: InspectionCategorySchema[];
+}
+
+export interface InspectionTemplate {
+  id: string;
+  code: string;
+  nameAr: string;
+  nameEn?: string;
+  facilityType?: string;
+  schemaJson: InspectionFormSchema;
+  isActive: boolean;
+  version: number;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InspectorLiveLocation {
+  inspectorId: string;
+  inspectorName: string;
+  role?: string;
+  provinceId?: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface OfflineInspectionDraft {
+  id: string;
+  assignmentId?: string;
+  inspectorId?: string;
+  inspectorName?: string;
+  facilityId: string;
+  facilityName: string;
+  templateId: string;
+  answersJson: Record<string, unknown>;
+  photos: string[];
+  notes: string;
+  complianceScore: number;
+  inspectorLat?: number;
+  inspectorLng?: number;
+  createdAt: string;
+  syncStatus: 'DRAFT' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED';
+  lastError?: string;
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Facility, Province, DistrictZone } from '../types';
 import { Search, Filter, Plus, Calendar, MapPin, Building2, User, Phone, CheckCircle2, AlertTriangle, Clock, ChevronRight, FileSpreadsheet, Printer } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
+import { facilityTypeLabel, facilityTypeEmoji } from '../utils/facilityLabels';
 import { SyndicateLogo } from './SyndicateLogo';
 
 interface FacilitiesTableProps {
@@ -86,7 +87,7 @@ export const FacilitiesTable: React.FC<FacilitiesTableProps> = ({
  return [
  f.licenseNumber,
  f.name,
- f.type === 'HOSPITAL' ? 'مستشفى أهلي' : f.type === 'CLINIC' ? 'عيادة تمريضية' : 'مركز تمريضي',
+ f.type === 'HOSPITAL' ? 'مستشفى أهلي' : facilityTypeLabel(f.type),
  provName,
  zoneName,
  `${f.neighborhood} - ${f.address || ''}`,
@@ -164,7 +165,7 @@ export const FacilitiesTable: React.FC<FacilitiesTableProps> = ({
  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs border-t border-[var(--theme-card-border)] pt-3">
  {/* Province Selector */}
  <div>
- <label className="text-[var(--theme-text-muted)] font-bold block mb-1">المحافظة (18 محافظة):</label>
+ <label className="text-[var(--theme-text-muted)] font-bold block mb-1">المحافظة (15 محافظة):</label>
  <select
  id="select-province"
  value={selectedProvinceId}
@@ -281,11 +282,11 @@ export const FacilitiesTable: React.FC<FacilitiesTableProps> = ({
  <tr key={f.id} className="hover:bg-amber-50/40 dark:hover:bg-slate-800/60 transition">
  <td className="p-3.5 font-bold text-[var(--theme-text-primary)]">
  <div className="flex items-center gap-2">
- <span className="text-lg">{f.type === 'HOSPITAL' ? '🏥' : '🩺'}</span>
+ <span className="text-lg">{facilityTypeEmoji(f.type)}</span>
  <div>
  <p className="text-[var(--theme-text-primary)] font-bold">{f.name}</p>
  <span className="text-[10px] text-[var(--theme-text-muted)] font-normal">
- {f.type === 'HOSPITAL' ? 'مستشفى أهلي' : f.type === 'CLINIC' ? 'عيادة تمريضية/ضماد' : 'مركز تمريضي'}
+ {facilityTypeLabel(f.type)}
  </span>
  </div>
  </div>
@@ -462,7 +463,7 @@ export const FacilitiesTable: React.FC<FacilitiesTableProps> = ({
  <tr key={f.id} className="hover:bg-[var(--theme-canvas)]">
  <td className="p-2.5 font-mono font-bold text-amber-900">{f.licenseNumber}</td>
  <td className="p-2.5 font-bold text-[var(--theme-text-primary)]">
- {f.name} ({f.type === 'HOSPITAL' ? 'مستشفى' : f.type === 'CLINIC' ? 'عيادة' : 'مركز'})
+ {f.name} ({facilityTypeLabel(f.type)})
  </td>
  <td className="p-2.5 text-[var(--theme-text-primary)]">
  {provName} - {f.neighborhood}

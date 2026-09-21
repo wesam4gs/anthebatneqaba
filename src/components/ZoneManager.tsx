@@ -268,7 +268,7 @@ export const ZoneManager: React.FC<ZoneManagerProps> = ({
           <div>
             <span className="text-slate-500 font-bold block mb-1">المحافظات المغطاة:</span>
             <span className="text-2xl font-black text-slate-900">
-              {new Set(customZones.map(z => z.provinceId)).size} / 18
+              {new Set(customZones.map(z => z.provinceId)).size} / 15
             </span>
             <span className="text-[10px] text-emerald-700 block mt-1 font-semibold">محافظة تحت التفتيش الفعال</span>
           </div>
@@ -326,7 +326,7 @@ export const ZoneManager: React.FC<ZoneManagerProps> = ({
             onChange={(e) => setFilterProvinceId(e.target.value)}
             className="w-full sm:w-auto bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 font-bold text-slate-800 focus:border-amber-500 focus:outline-none"
           >
-            <option value="ALL">جميع المحافظات الـ 18</option>
+            <option value="ALL">جميع المحافظات الـ 15</option>
             {provinces.map(p => (
               <option key={p.id} value={p.id}>{p.nameAr}</option>
             ))}
@@ -583,7 +583,7 @@ export const ZoneManager: React.FC<ZoneManagerProps> = ({
               {/* Province, Branch Selector */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-800 block mb-1">المحافظة (الـ 18 محافظة):</label>
+                  <label className="font-bold text-slate-800 block mb-1">المحافظة (الـ 15 محافظة):</label>
                   <select
                     id="committee-province-select"
                     value={selectedProvinceId}

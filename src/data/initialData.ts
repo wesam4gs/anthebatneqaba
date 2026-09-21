@@ -4,9 +4,6 @@ export const INITIAL_PROVINCES: Province[] = [
   { id: 'iq_baghdad', nameAr: 'بغداد', nameEn: 'Baghdad', centerLat: 33.3152, centerLng: 44.3661, zoomLevel: 12 },
   { id: 'iq_basra', nameAr: 'البصرة', nameEn: 'Basra', centerLat: 30.5081, centerLng: 47.7835, zoomLevel: 12 },
   { id: 'iq_nineveh', nameAr: 'نينوى', nameEn: 'Nineveh', centerLat: 36.3400, centerLng: 43.1300, zoomLevel: 11 },
-  { id: 'iq_erbil', nameAr: 'أربيل', nameEn: 'Erbil', centerLat: 36.1901, centerLng: 44.0091, zoomLevel: 12 },
-  { id: 'iq_sulaymaniyah', nameAr: 'السليمانية', nameEn: 'Sulaymaniyah', centerLat: 35.5560, centerLng: 45.4370, zoomLevel: 12 },
-  { id: 'iq_duhok', nameAr: 'دهوك', nameEn: 'Duhok', centerLat: 36.8679, centerLng: 42.9880, zoomLevel: 12 },
   { id: 'iq_najaf', nameAr: 'النجف الأشرف', nameEn: 'Najaf', centerLat: 32.0000, centerLng: 44.3333, zoomLevel: 12 },
   { id: 'iq_karbala', nameAr: 'كربلاء المقدسة', nameEn: 'Karbala', centerLat: 32.6160, centerLng: 44.0250, zoomLevel: 12 },
   { id: 'iq_babel', nameAr: 'بابل', nameEn: 'Babil', centerLat: 32.4637, centerLng: 44.4312, zoomLevel: 12 },
@@ -147,64 +144,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 43.3700,
     neighborhoods: ['قضاء الحمدانية', 'قضاء تلكيف', 'ناحية بعشيقة', 'الشيخان', 'عقرة']
   },
-  // 4. أربيل
-  {
-    id: 'zone_erbil_center',
-    provinceId: 'iq_erbil',
-    nameAr: 'أربيل - فرع المركز وعينكاوة',
-    code: 'EBL-CENTER',
-    centerLat: 36.1901,
-    centerLng: 44.0091,
-    neighborhoods: ['ناحية عينكاوة', 'قلعة أربيل', 'حي إسكان', 'حي شورش', 'شارع 100 متري', 'شارع 60 متري']
-  },
-  {
-    id: 'zone_erbil_outer',
-    provinceId: 'iq_erbil',
-    nameAr: 'أربيل - أقضية شقلاوة وسوران',
-    code: 'EBL-OUTER',
-    centerLat: 36.4000,
-    centerLng: 44.3200,
-    neighborhoods: ['قضاء شقلاوة', 'قضاء سوران', 'قضاء كوية', 'قضاء ميركسور']
-  },
-  // 5. السليمانية
-  {
-    id: 'zone_suly_center',
-    provinceId: 'iq_sulaymaniyah',
-    nameAr: 'السليمانية - فرع المركز وسرجنار',
-    code: 'SLY-CENTER',
-    centerLat: 35.5560,
-    centerLng: 45.4370,
-    neighborhoods: ['منطقة سرجنار', 'حي بختياري', 'حي عقاري', 'حي رابرين', 'حي جق جق', 'حي ملكندي']
-  },
-  {
-    id: 'zone_suly_outer',
-    provinceId: 'iq_sulaymaniyah',
-    nameAr: 'السليمانية - أقضية حلبجة ورانية',
-    code: 'SLY-OUTER',
-    centerLat: 35.2500,
-    centerLng: 45.9800,
-    neighborhoods: ['محافظة حلبجة', 'قضاء رانية', 'قضاء دوكان', 'قضاء كلار', 'قضاء دربندخان']
-  },
-  // 6. دهوك
-  {
-    id: 'zone_duhok_center',
-    provinceId: 'iq_duhok',
-    nameAr: 'دهوك - فرع المركز وسميل',
-    code: 'DHK-CENTER',
-    centerLat: 36.8679,
-    centerLng: 42.9880,
-    neighborhoods: ['مركز مدينة دهوك', 'قضاء سميل', 'حي شوز', 'حي شرفية']
-  },
-  {
-    id: 'zone_duhok_zakho',
-    provinceId: 'iq_duhok',
-    nameAr: 'دهوك - قضاء زاخو والعمادية',
-    code: 'DHK-ZAKHO',
-    centerLat: 37.1400,
-    centerLng: 42.6800,
-    neighborhoods: ['إدارة زاخو المستقلة', 'قضاء العمادية', 'قضاء بردرش']
-  },
-  // 7. النجف الأشرف
+  // 4. النجف الأشرف
   {
     id: 'zone_najaf_center',
     provinceId: 'iq_najaf',
@@ -223,7 +163,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 44.4000,
     neighborhoods: ['قضاء الكوفة المقدسة', 'قضاء المناذرة', 'ناحية المشخاب', 'ناحية العباسية']
   },
-  // 8. كربلاء المقدسة
+  // 5. كربلاء المقدسة
   {
     id: 'zone_karbala_center',
     provinceId: 'iq_karbala',
@@ -242,7 +182,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 43.5000,
     neighborhoods: ['قضاء الهندية (طويريج)', 'قضاء عين التمر', 'قضاء الحر', 'الجدول الغربي']
   },
-  // 9. بابل
+  // 6. بابل
   {
     id: 'zone_babil_center',
     provinceId: 'iq_babel',
@@ -261,7 +201,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 44.4000,
     neighborhoods: ['قضاء المحاويل', 'قضاء المسيب', 'ناحية الإسكندرية', 'جرف النصر']
   },
-  // 10. واسط
+  // 7. واسط
   {
     id: 'zone_wasit_kut',
     provinceId: 'iq_wasit',
@@ -280,7 +220,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 46.0400,
     neighborhoods: ['قضاء الحي', 'قضاء الصويرة', 'قضاء العزيزية', 'ناحية بدرة']
   },
-  // 11. ذي قار
+  // 8. ذي قار
   {
     id: 'zone_dhiqar_nasiriya',
     provinceId: 'iq_dhi_qar',
@@ -299,7 +239,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 46.1700,
     neighborhoods: ['قضاء الشطرة', 'قضاء سوق الشيوخ', 'قضاء الرفاعي', 'ناحية الجبايش (الأهوار)']
   },
-  // 12. القادسية (الديوانية)
+  // 9. القادسية (الديوانية)
   {
     id: 'zone_qadisiyyah_center',
     provinceId: 'iq_qadisiyyah',
@@ -309,7 +249,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 44.9222,
     neighborhoods: ['مدينة الديوانية', 'حي العروبة', 'حي الجزائر', 'حي النهضة', 'قضاء الشامية', 'قضاء عفك']
   },
-  // 13. ميسان
+  // 10. ميسان
   {
     id: 'zone_maysan_amarah',
     provinceId: 'iq_maysan',
@@ -319,7 +259,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 47.1450,
     neighborhoods: ['مدينة العمارة', 'حي المعلمين', 'قضاء الميمونة', 'قضاء علي الغربي', 'قضاء قلعة صالح']
   },
-  // 14. المثنى
+  // 11. المثنى
   {
     id: 'zone_muthanna_samawah',
     provinceId: 'iq_muthanna',
@@ -329,7 +269,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 45.2810,
     neighborhoods: ['مدينة السماوة', 'قضاء الرميثة', 'قضاء الخضر', 'قضاء السلمان']
   },
-  // 15. ديالى
+  // 12. ديالى
   {
     id: 'zone_diyala_baqubah',
     provinceId: 'iq_diyala',
@@ -339,7 +279,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 45.1500,
     neighborhoods: ['مدينة بعقوبة', 'حي المعلمين', 'قضاء المقدادية', 'قضاء الخالص', 'قضاء خانقين']
   },
-  // 16. الأنبار
+  // 13. الأنبار
   {
     id: 'zone_anbar_ramadi',
     provinceId: 'iq_anbar',
@@ -349,7 +289,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 43.2980,
     neighborhoods: ['مدينة الرمادي', 'مدينة الفلوجة', 'حي الضباط', 'قضاء هيت', 'قضاء القائم', 'قضاء حديثة']
   },
-  // 17. صلاح الدين
+  // 14. صلاح الدين
   {
     id: 'zone_saladin_tikrit',
     provinceId: 'iq_saladin',
@@ -359,7 +299,7 @@ export const INITIAL_DISTRICT_ZONES: DistrictZone[] = [
     centerLng: 43.6800,
     neighborhoods: ['مدينة تكريت', 'قضاء سامراء المقدسة', 'قضاء بلد', 'قضاء طوزخورماتو', 'قضاء بيجي']
   },
-  // 18. كركوك
+  // 15. كركوك
   {
     id: 'zone_kirkuk_center',
     provinceId: 'iq_kirkuk',
@@ -390,7 +330,7 @@ export const INITIAL_USERS: User[] = [
     canBroadcastNationwide: true,
     canAccessAllProvinces: true,
     assignedZoneId: 'all_hq',
-    assignedZoneName: 'المقر العام — كافة المحافظات الـ 18',
+    assignedZoneName: 'المقر العام — كافة المحافظات الـ 15',
     status: 'ACTIVE',
     createdAt: '2024-01-01'
   },
@@ -572,7 +512,7 @@ export const INITIAL_USERS: User[] = [
   }
 ];
 
-export const INITIAL_FACILITIES: Facility[] = [
+const LEGACY_FACILITIES: Facility[] = [
   {
     id: 'fac_bgd_1',
     licenseNumber: 'LIC-2026-001',
@@ -973,46 +913,6 @@ export const INITIAL_FACILITIES: Facility[] = [
     createdDate: '2025-01-12'
   },
   {
-    id: 'fac_8',
-    licenseNumber: 'IRQ-NUR-2024-601',
-    name: 'مركز عينكاوة التمريضي التخصصي',
-    type: 'NURSING_CENTER',
-    provinceId: 'iq_erbil',
-    zoneId: 'zone_erbil_center',
-    districtArea: 'قضاء عينكاوة',
-    neighborhood: 'ناحية عينكاوة',
-    addressDetail: 'شارع الكنيسة الرئيسية - قرب المجمع الخدمي',
-    ownerName: 'الممرض الأخصائي / دانيال يوسف',
-    ownerPhone: '07501114422',
-    latitude: 36.2200,
-    longitude: 43.9900,
-    licenseStatus: 'LICENSED',
-    licenseExpiryDate: '2028-01-10',
-    lastInspectionDate: '2026-06-01',
-    inspectionStatus: 'INSPECTED',
-    createdDate: '2024-04-05'
-  },
-  {
-    id: 'fac_9',
-    licenseNumber: 'IRQ-NUR-2025-710',
-    name: 'عيادة سرجنار التمريضية والعلاج الطبيعي',
-    type: 'CLINIC',
-    provinceId: 'iq_sulaymaniyah',
-    zoneId: 'zone_suly_center',
-    districtArea: 'قضاء السليمانية / سرجنار',
-    neighborhood: 'منطقة سرجنار',
-    addressDetail: 'شارع سرجنار الرئيسي',
-    ownerName: 'الممرضة / آشتي كوران',
-    ownerPhone: '07709991122',
-    latitude: 35.5600,
-    longitude: 45.4200,
-    licenseStatus: 'LICENSED',
-    licenseExpiryDate: '2027-04-15',
-    lastInspectionDate: '2026-03-22',
-    inspectionStatus: 'INSPECTED',
-    createdDate: '2025-03-10'
-  },
-  {
     id: 'fac_10',
     licenseNumber: 'IRQ-NUR-2024-880',
     name: 'مستشفى الغري الأهلي التمريضي',
@@ -1171,7 +1071,300 @@ export const INITIAL_FACILITIES: Facility[] = [
     lastInspectionDate: '2026-05-15',
     inspectionStatus: 'NEEDS_INSPECTION',
     createdDate: '2025-05-10'
+  },
+  {
+    id: 'fac_rusa_ubaidi_1',
+    licenseNumber: 'LIC-2026-RUS-081',
+    name: 'عيادة العبيدي التمريضية للضماد والرعاية',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / العبيدي',
+    neighborhood: 'العبيدي',
+    addressDetail: 'بغداد - العبيدي - الشارع العام مقابل مجمع الأسواق الشعبي',
+    ownerName: 'الممرض الجامعي / أحمد جاسم العبيدي',
+    ownerPhone: '07721112233',
+    latitude: 33.3396,
+    longitude: 44.4784,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2027-03-15',
+    lastInspectionDate: '2026-04-22',
+    inspectionStatus: 'NEEDS_INSPECTION',
+    createdDate: '2025-08-10'
+  },
+  {
+    id: 'fac_rusa_ubaidi_2',
+    licenseNumber: 'LIC-2026-RUS-082',
+    name: 'مركز الرعاية التمريضية - حي العبيدي',
+    type: 'NURSING_CENTER',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / العبيدي',
+    neighborhood: 'العبيدي',
+    addressDetail: 'بغداد - العبيدي - محلة 716 - قرب دائرة البلدية',
+    ownerName: 'الممرضة الأخصائية / سناء كاظم الراوي',
+    ownerPhone: '07823334455',
+    latitude: 33.3361,
+    longitude: 44.4718,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2026-12-01',
+    lastInspectionDate: '2026-03-18',
+    inspectionStatus: 'INSPECTED',
+    createdDate: '2025-07-01'
+  },
+  {
+    id: 'fac_rusa_ubaidi_3',
+    licenseNumber: 'LIC-2026-RUS-083',
+    name: 'عيادة النور للخدمات التمريضية المنزلية - العبيدي',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / العبيدي',
+    neighborhood: 'العبيدي',
+    addressDetail: 'بغداد - العبيدي - شارع المدارس - عمارة الشفاء',
+    ownerName: 'الممرض الماهر / حسين علي الدليمي',
+    ownerPhone: '07714445566',
+    latitude: 33.3424,
+    longitude: 44.4831,
+    licenseStatus: 'EXPIRED',
+    licenseExpiryDate: '2026-06-30',
+    lastInspectionDate: '2026-02-10',
+    inspectionStatus: 'NEEDS_INSPECTION',
+    createdDate: '2025-05-20'
+  },
+  {
+    id: 'fac_rusa_ubaidi_4',
+    licenseNumber: 'LIC-2026-RUS-084',
+    name: 'عيادة الرحمة للضماد والتجبير - العبيدي',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / العبيدي',
+    neighborhood: 'العبيدي',
+    addressDetail: 'بغداد - العبيدي - قرب جامع العبيدي الكبير',
+    ownerName: 'د. كاظم محمد الشمري',
+    ownerPhone: '07905556677',
+    latitude: 33.3354,
+    longitude: 44.4856,
+    licenseStatus: 'UNLICENSED',
+    licenseExpiryDate: '2025-12-31',
+    lastInspectionDate: undefined,
+    inspectionStatus: 'VIOLATION_RECORDED',
+    createdDate: '2026-01-12'
+  },
+  {
+    id: 'fac_rusa_ubaidi_5',
+    licenseNumber: 'LIC-2026-RUS-085',
+    name: 'مركز الحياة للرعاية التمريضية الفائقة - العبيدي',
+    type: 'NURSING_CENTER',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / العبيدي',
+    neighborhood: 'العبيدي',
+    addressDetail: 'بغداد - العبيدي - مجمع العيادات الطبية الثاني',
+    ownerName: 'الممرضة الجامعية / هدى عبد الأمير',
+    ownerPhone: '07806667788',
+    latitude: 33.3412,
+    longitude: 44.4699,
+    licenseStatus: 'PENDING',
+    licenseExpiryDate: '2027-01-01',
+    lastInspectionDate: undefined,
+    inspectionStatus: 'NEEDS_INSPECTION',
+    createdDate: '2026-07-05'
+  },
+  {
+    id: 'fac_rusa_jadida_1',
+    licenseNumber: 'LIC-2026-RUS-091',
+    name: 'عيادة بغداد الجديدة التمريضية',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / بغداد الجديدة',
+    neighborhood: 'بغداد الجديدة',
+    addressDetail: 'بغداد الجديدة - الشارع الرئيسي قرب مجمع العيادات الأهلية',
+    ownerName: 'الممرض الجامعي / باسم عباس الجنابي',
+    ownerPhone: '07727778899',
+    latitude: 33.3324,
+    longitude: 44.4568,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2027-05-20',
+    lastInspectionDate: '2026-06-02',
+    inspectionStatus: 'INSPECTED',
+    createdDate: '2025-09-01'
+  },
+  {
+    id: 'fac_rusa_mashtal_1',
+    licenseNumber: 'LIC-2026-RUS-092',
+    name: 'عيادة المشتل للضماد والرعاية',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / المشتل',
+    neighborhood: 'المشتل',
+    addressDetail: 'المشتل - الشارع الرئيسي مقابل مجمع الصيدليات',
+    ownerName: 'الممرضة / نور علي القيسي',
+    ownerPhone: '07812223344',
+    latitude: 33.3258,
+    longitude: 44.4682,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2026-11-10',
+    lastInspectionDate: '2026-01-20',
+    inspectionStatus: 'NEEDS_INSPECTION',
+    createdDate: '2025-10-12'
+  },
+  {
+    id: 'fac_rusa_sadr_1',
+    licenseNumber: 'LIC-2026-RUS-093',
+    name: 'مركز مدينة الصدر للخدمات التمريضية',
+    type: 'NURSING_CENTER',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / مدينة الصدر',
+    neighborhood: 'مدينة الصدر',
+    addressDetail: 'مدينة الصدر - القطاع 22 - قرب المستوصف الشعبي',
+    ownerName: 'الممرض الجامعي / قاسم محمد السعدي',
+    ownerPhone: '07739990011',
+    latitude: 33.3712,
+    longitude: 44.4615,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2027-02-28',
+    lastInspectionDate: '2026-05-08',
+    inspectionStatus: 'INSPECTED',
+    createdDate: '2025-06-18'
+  },
+  {
+    id: 'fac_rusa_shaab_1',
+    licenseNumber: 'LIC-2026-RUS-094',
+    name: 'عيادة الشعب التمريضية التخصصية',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / الشعب',
+    neighborhood: 'الشعب',
+    addressDetail: 'حي الشعب - شارع الإمام علي - عمارة النور الطبية',
+    ownerName: 'د. وفاء حميد العبيدي',
+    ownerPhone: '07824445566',
+    latitude: 33.3846,
+    longitude: 44.4012,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2026-10-15',
+    lastInspectionDate: '2026-03-01',
+    inspectionStatus: 'NEEDS_INSPECTION',
+    createdDate: '2025-04-22'
+  },
+  {
+    id: 'fac_rusa_fadl_1',
+    licenseNumber: 'LIC-2026-RUS-095',
+    name: 'عيادة الفضل للرعاية التمريضية',
+    type: 'CLINIC',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / الفضل',
+    neighborhood: 'الفضل',
+    addressDetail: 'الفضل - قرب الباب المعظم - زقاق العيادات',
+    ownerName: 'الممرض الماهر / مصطفى جبار',
+    ownerPhone: '07716667700',
+    latitude: 33.3452,
+    longitude: 44.4068,
+    licenseStatus: 'UNLICENSED',
+    licenseExpiryDate: '2025-08-01',
+    lastInspectionDate: undefined,
+    inspectionStatus: 'VIOLATION_RECORDED',
+    createdDate: '2026-02-02'
+  },
+  {
+    id: 'fac_rusa_zaafar_1',
+    licenseNumber: 'LIC-2026-RUS-096',
+    name: 'مركز الزعفرانية للتمريض والرعاية المنزلية',
+    type: 'NURSING_CENTER',
+    provinceId: 'iq_baghdad',
+    zoneId: 'zone_rusafa',
+    districtArea: 'قضاء الرصافة / الزعفرانية',
+    neighborhood: 'الزعفرانية',
+    addressDetail: 'الزعفرانية - الشارع العام قرب دائرة الكهرباء',
+    ownerName: 'الممرضة الجامعية / إيمان سعدون',
+    ownerPhone: '07835556677',
+    latitude: 33.2528,
+    longitude: 44.4986,
+    licenseStatus: 'LICENSED',
+    licenseExpiryDate: '2027-08-12',
+    lastInspectionDate: '2026-07-11',
+    inspectionStatus: 'INSPECTED',
+    createdDate: '2025-11-03'
   }
+];
+
+const NATIONAL_OWNERS = [
+  { hospital: 'د. حسن عبد الرزاق', clinic: 'الممرض الجامعي / علي جاسم محمد', midwife: 'القابلة القانونية / فاطمة كريم العزاوي' },
+  { hospital: 'د. سناء عبد الوهاب', clinic: 'الممرضة الجامعية / هدى عباس', midwife: 'القابلة الماهرة / زينب جابر' },
+  { hospital: 'د. كريم مهدي الشمري', clinic: 'الممرض الماهر / سلام عبيد', midwife: 'القابلة القانونية / إيمان سعدون' }
+];
+
+const NATIONAL_STATUSES: Array<{ license: Facility['licenseStatus']; inspection: Facility['inspectionStatus'] }> = [
+  { license: 'LICENSED', inspection: 'INSPECTED' },
+  { license: 'LICENSED', inspection: 'NEEDS_INSPECTION' },
+  { license: 'EXPIRED', inspection: 'NEEDS_INSPECTION' },
+  { license: 'PENDING', inspection: 'NEEDS_INSPECTION' },
+  { license: 'UNLICENSED', inspection: 'VIOLATION_RECORDED' }
+];
+
+function buildNationalCoverageFacilities(): Facility[] {
+  const generated: Facility[] = [];
+  let seq = 1;
+
+  INITIAL_DISTRICT_ZONES.forEach((zone) => {
+    const owner = NATIONAL_OWNERS[seq % NATIONAL_OWNERS.length];
+
+    zone.neighborhoods.forEach((neighborhood, nhIndex) => {
+      const typesForNeighborhood: Facility['type'][] =
+        nhIndex === 0
+          ? ['HOSPITAL', 'CLINIC', 'MIDWIFE_CLINIC']
+          : [['CLINIC', 'MIDWIFE_CLINIC', 'HOSPITAL'][nhIndex % 3] as Facility['type']];
+
+      typesForNeighborhood.forEach((type, typeIndex) => {
+        const status = NATIONAL_STATUSES[seq % NATIONAL_STATUSES.length];
+        const latOff = type === 'HOSPITAL' ? 0 : type === 'CLINIC' ? 0.005 + nhIndex * 0.002 : -0.005 - nhIndex * 0.0015;
+        const lngOff = type === 'HOSPITAL' ? 0 : type === 'CLINIC' ? 0.004 + typeIndex * 0.001 : 0.007 + nhIndex * 0.001;
+        const name =
+          type === 'HOSPITAL'
+            ? `مستشفى ${neighborhood} الأهلي`
+            : type === 'MIDWIFE_CLINIC'
+              ? `عيادة القبالة القانونية - ${neighborhood}`
+              : `عيادة ${neighborhood} التمريضية`;
+        const ownerName =
+          type === 'HOSPITAL' ? owner.hospital : type === 'MIDWIFE_CLINIC' ? owner.midwife : owner.clinic;
+
+        generated.push({
+          id: `fac_nat_${zone.id}_${neighborhood}_${type.toLowerCase()}`.replace(/\s+/g, '_'),
+          licenseNumber: `LIC-2026-NAT-${String(seq).padStart(3, '0')}`,
+          name,
+          type,
+          provinceId: zone.provinceId,
+          zoneId: zone.id,
+          districtArea: zone.nameAr,
+          neighborhood,
+          addressDetail: `${neighborhood} - الشارع الرئيسي قرب المجمع الطبي الأهلي`,
+          ownerName,
+          ownerPhone: `0772${String(4000000 + seq).slice(-7)}`,
+          latitude: Number((zone.centerLat + latOff).toFixed(4)),
+          longitude: Number((zone.centerLng + lngOff).toFixed(4)),
+          licenseStatus: status.license,
+          licenseExpiryDate: status.license === 'EXPIRED' ? '2026-03-01' : '2027-12-31',
+          lastInspectionDate: status.inspection === 'INSPECTED' ? '2026-06-15' : undefined,
+          inspectionStatus: status.inspection,
+          createdDate: '2026-01-10'
+        });
+        seq += 1;
+      });
+    });
+  });
+
+  return generated;
+}
+
+export const INITIAL_FACILITIES: Facility[] = [
+  ...LEGACY_FACILITIES,
+  ...buildNationalCoverageFacilities()
 ];
 
 export const INITIAL_CUSTOM_ZONES: CustomInspectionZone[] = [
@@ -1651,7 +1844,7 @@ export const INITIAL_CHAT_MESSAGES: BranchChatMessage[] = [
     senderBadge: 'NURSE-HQ-001',
     provinceId: 'all',
     provinceName: 'عموم العراق',
-    messageText: '📢 [تبليغ عام صادر من نقيب التمريض العراقي إلى كافة فروع المحافظات الـ 18]: السلام عليكم زملاءنا في كافة الفروع ولجان التفتيش. يُلزم كافة المفتشين الميدانيين بالتدقيق الصارم على بطاقات الانتساب النقابي والتحقق الجغرافي GPS لجميع العيادات والمستشفيات الأهلية بدون استثناء.',
+    messageText: '📢 [تبليغ عام صادر من نقيب التمريض العراقي إلى كافة فروع المحافظات الـ 15]: السلام عليكم زملاءنا في كافة الفروع ولجان التفتيش. يُلزم كافة المفتشين الميدانيين بالتدقيق الصارم على بطاقات الانتساب النقابي والتحقق الجغرافي GPS لجميع العيادات والمستشفيات الأهلية بدون استثناء.',
     timestamp: '2026-09-09 08:30',
     type: 'CENTRAL_BROADCAST',
     isNationwideBroadcast: true,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Shield, MapPin, ClipboardList, Database, Users, AlertTriangle, UserCheck, Layers, UserCog, Sun, Moon, Globe, LogOut, User as UserIcon, LayoutDashboard, Wallet, Radio, Smartphone, ExternalLink } from 'lucide-react';
+import { Shield, MapPin, ClipboardList, Database, Users, AlertTriangle, UserCheck, Layers, UserCog, Sun, Moon, Globe, LogOut, User as UserIcon, LayoutDashboard, Wallet, Radio, Smartphone, ExternalLink, Network, FileJson } from 'lucide-react';
 import { SyndicateLogo } from './SyndicateLogo';
 import { ThemeSelectorPopover } from './ThemeSelectorPopover';
 import { useLanguageTheme } from '../context/LanguageThemeContext';
@@ -199,6 +199,32 @@ export const Navbar: React.FC<NavbarProps> = ({
  >
  <MapPin className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-400 shrink-0" id="icon-gis" />
  <span>{t('tab_gis_map')}</span>
+ </button>
+
+ <button
+ id="nav-tab-branch-network"
+ onClick={() => onTabChange('branch_network')}
+ className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 ${
+ activeTab === 'branch_network'
+ ? 'bg-cyan-500 text-slate-950 font-black shadow-md'
+ : 'text-cyan-300 hover:bg-slate-800 hover:text-white'
+ }`}
+ >
+ <Network className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-cyan-400 shrink-0" id="icon-branch-network" />
+ <span>{t('tab_branch_network')}</span>
+ </button>
+
+ <button
+ id="nav-tab-form-engine"
+ onClick={() => onTabChange('form_engine')}
+ className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 ${
+ activeTab === 'form_engine'
+ ? 'bg-violet-500 text-white font-black shadow-md'
+ : 'text-violet-300 hover:bg-slate-800 hover:text-white'
+ }`}
+ >
+ <FileJson className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-violet-400 shrink-0" />
+ <span>{t('tab_form_engine')}</span>
  </button>
 
  <button

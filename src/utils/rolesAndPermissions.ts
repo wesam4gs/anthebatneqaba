@@ -21,7 +21,7 @@ export const ROLES_PERMISSIONS_DIRECTORY: RolePermissionDetail[] = [
     title: 'نقيب التمريض العراقي (القيادة العليا)',
     category: 'LEADERSHIP',
     geographicScope: 'NATIONWIDE',
-    scopeDescription: 'جمهورية العراق كافة (شامل جميع المحافظات الـ 18)',
+    scopeDescription: 'جمهورية العراق كافة (شامل جميع المحافظات الـ 15)',
     canBroadcastNationwide: true,
     canAccessAllProvinces: true,
     canIssueClosureOrders: true,
@@ -31,7 +31,7 @@ export const ROLES_PERMISSIONS_DIRECTORY: RolePermissionDetail[] = [
     permissionsList: [
       'صلاحيات إشرافية ورقابية عليا على عموم محافظات العراق',
       'إصدار التبليغات العامة والتعاميم النقابية الملزمة لكافة الفروع',
-      'التنقل ومتابعة جميع غرف دردشة وتفتيش المحافظات الـ 18',
+      'التنقل ومتابعة جميع غرف دردشة وتفتيش المحافظات الـ 15',
       'المصادقة النهائية على قرارات الغلق والتشميع وسحب الإجازات',
       'التحكم المركزي بالموازنات التفتيشية ولجان الانضباط'
     ]
@@ -183,7 +183,7 @@ export function getUserGeographicScope(user: User): {
     return {
       isNationwide: true,
       label: 'عموم جمهورية العراق (شامل)',
-      detail: 'صلاحيات وصول لكافة المحافظات والـ 18 فرعاً + تبليغ عام شامل',
+      detail: 'صلاحيات وصول لكافة المحافظات والـ 15 فرعاً + تبليغ عام شامل',
       badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/40'
     };
   }
